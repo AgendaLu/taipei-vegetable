@@ -1,0 +1,350 @@
+# 農產品批發市場品名代碼對照表
+#
+# 資料來源：https://amis.afa.gov.tw/main/ProductChanged.aspx
+# 更新日期：2026-04-14
+# 說明：本表收錄 AMIS「代號新增/變動」品項，非完整清單。
+#       農業部 API (data.moa.gov.tw) 查詢以 crop 欄位的名稱為 Crop 參數。
+#
+# 四層階層結構：
+#   大類 → 分類 → 品項 (crop) → 代號細項 (codes)
+#
+# 欄位說明：
+#   crop     - 品項主要名稱（同農業部 API 的作物名稱）
+#   aliases  - 常見別稱（供使用者查詢時的模糊比對）
+#   codes    - AMIS 代號清單
+#     code   - AMIS 代號（字串，保留前導零）
+#     name   - AMIS 官方全名
+#     imported - 是否為進口品
+
+version: "1.0"
+source: "https://amis.afa.gov.tw/main/ProductChanged.aspx"
+last_updated: "2026-04-14"
+
+catalog:
+
+  蔬菜:
+
+    花果菜類:   # code prefix: F（Fruit / Flower vegetables）
+
+      - crop: 甜椒
+        aliases: [青椒, 彩椒, 燈籠椒, 柿子椒]
+        codes:
+          - { code: FK40, name: "甜椒 彩色種 其他",  imported: false }
+          - { code: FK41, name: "甜椒 彩色種 紅色",  imported: false }
+          - { code: FK42, name: "甜椒 彩色種 黃色",  imported: false }
+          - { code: FK43, name: "甜椒 彩色種 橘色",  imported: false }
+          - { code: FK6,  name: "甜椒 水果彩椒",     imported: false }
+          - { code: FK90, name: "甜椒 進口 其他",    imported: true  }
+          - { code: FK94, name: "甜椒 進口 彩色種",  imported: true  }
+          - { code: FK95, name: "甜椒 進口 青椒",    imported: true  }
+
+      - crop: 豌豆
+        aliases: [荷蘭豆, 甜豆, 雪豆, 豌豆仁]
+        codes:
+          - { code: FL91, name: "豌豆 進口 白花",   imported: true }
+          - { code: FL92, name: "豌豆 進口 紅花",   imported: true }
+          - { code: FL93, name: "豌豆 進口 豆筴",   imported: true }
+          - { code: FL94, name: "豌豆 進口 豆仁",   imported: true }
+          - { code: FL95, name: "豌豆 進口 豌豆苗", imported: true }
+          - { code: FL96, name: "豌豆 進口 甜豌豆", imported: true }
+
+      - crop: 南瓜
+        aliases: [金瓜, 栗子南瓜, 東昇南瓜]
+        codes:
+          - { code: FT11, name: "南瓜 木瓜型 阿成", imported: false }
+          - { code: FT12, name: "南瓜 木瓜型 阿嬌", imported: false }
+          - { code: FT6,  name: "南瓜 東昇",        imported: false }
+          - { code: FT7,  name: "南瓜 粟子",        imported: false }
+          - { code: FT71, name: "南瓜 栗子 小紅",   imported: false }
+          - { code: FT72, name: "南瓜 栗子 小黑",   imported: false }
+          - { code: FT9,  name: "南瓜 進口",        imported: true  }
+          - { code: FT90, name: "南瓜 進口 其他",   imported: true  }
+          - { code: FT91, name: "南瓜 進口 木瓜型", imported: true  }
+          - { code: FT92, name: "南瓜 進口 圓型",   imported: true  }
+          - { code: FT96, name: "南瓜 進口 東昇",   imported: true  }
+          - { code: FT97, name: "南瓜 進口 栗子",   imported: true  }
+
+      - crop: 辣椒
+        aliases: [紅辣椒, 青辣椒, 朝天椒, 雞心椒]
+        codes:
+          - { code: FV5,  name: "辣椒 青龍",        imported: false }
+          - { code: FV6,  name: "辣椒 糯米椒",      imported: false }
+          - { code: FV90, name: "辣椒 進口 其他",   imported: true  }
+          - { code: FV91, name: "辣椒 進口 紅小",   imported: true  }
+          - { code: FV92, name: "辣椒 進口 青小",   imported: true  }
+          - { code: FV93, name: "辣椒 進口 雞心",   imported: true  }
+          - { code: FV94, name: "辣椒 進口 朝天椒", imported: true  }
+          - { code: FV95, name: "辣椒 進口 青龍",   imported: true  }
+          - { code: FV96, name: "辣椒 進口 糯米椒", imported: true  }
+
+      - crop: 玉米
+        aliases: [甜玉米, 玉蜀黍, 玉米筍]
+        codes:
+          - { code: FY41, name: "玉米 玉米筍 帶殼", imported: false }
+          - { code: FY8,  name: "玉米 白龍王",       imported: false }
+          - { code: FY90, name: "玉米 進口 其他",    imported: true  }
+          - { code: FY91, name: "玉米 進口 白玉米",  imported: true  }
+          - { code: FY92, name: "玉米 進口 甜硬殼",  imported: true  }
+          - { code: FY93, name: "玉米 進口 超甜白",  imported: true  }
+          - { code: FY94, name: "玉米 進口 玉米筍",  imported: true  }
+          - { code: FY95, name: "玉米 進口 糯米種",  imported: true  }
+          - { code: FY96, name: "玉米 進口 甜軟殼",  imported: true  }
+          - { code: FY97, name: "玉米 進口 糯米白",  imported: true  }
+          - { code: FY98, name: "玉米 進口 白龍王",  imported: true  }
+
+    葉菜類:   # code prefix: L（Leafy vegetables）
+
+      - crop: 甘藍
+        aliases: [高麗菜, 捲心菜, 洋白菜, 結球甘藍]
+        codes:
+          - { code: LA7,  name: "甘藍 改良尖",     imported: false }
+          - { code: LA90, name: "甘藍 進口 其他",   imported: true  }
+          - { code: LA91, name: "甘藍 進口 初秋",   imported: true  }
+          - { code: LA92, name: "甘藍 進口 改良種", imported: true  }
+          - { code: LA93, name: "甘藍 進口 甜甘藍", imported: true  }
+          - { code: LA94, name: "甘藍 進口 紫色",   imported: true  }
+          - { code: LA95, name: "甘藍 進口 甘藍心", imported: true  }
+          - { code: LA96, name: "甘藍 進口 甘藍芽", imported: true  }
+          - { code: LA97, name: "甘藍 進口 改良尖", imported: true  }
+
+      - crop: 小白菜
+        aliases: [青江菜, 湯匙菜, 瓢兒菜]
+        codes:
+          - { code: LB3, name: "小白菜 奶油白", imported: false }
+
+      - crop: 包心白菜
+        aliases: [大白菜, 山東白菜, 黃芽菜, 天津白]
+        codes:
+          - { code: LC90, name: "包心白菜 進口 其他",   imported: true }
+          - { code: LC91, name: "包心白菜 進口 包白",   imported: true }
+          - { code: LC93, name: "包心白菜 進口 包頭蓮", imported: true }
+          - { code: LC95, name: "包心白菜 進口 天津白", imported: true }
+
+      - crop: 菠菜
+        aliases: [赤根菜, 紅根菜]
+        codes:
+          - { code: LH3, name: "菠菜 甜菠菜", imported: false }
+
+      - crop: 萵苣菜
+        aliases: [萵苣, 生菜, 美生菜, 結球萵苣, 蘿美, 油麥菜]
+        codes:
+          - { code: LI7,  name: "萵苣菜 紅捲綠捲",     imported: false }
+          - { code: LI71, name: "萵苣菜 紅捲",          imported: false }
+          - { code: LI72, name: "萵苣菜 綠捲",          imported: false }
+          - { code: LI90, name: "萵苣菜 進口 其他",     imported: true  }
+          - { code: LI91, name: "萵苣菜 進口 廣東萵",   imported: true  }
+          - { code: LI92, name: "萵苣菜 進口 結球萵",   imported: true  }
+          - { code: LI93, name: "萵苣菜 進口 本島圓葉", imported: true  }
+          - { code: LI94, name: "萵苣菜 進口 本島尖葉", imported: true  }
+          - { code: LI95, name: "萵苣菜 進口 油麥菜",   imported: true  }
+          - { code: LI96, name: "萵苣菜 進口 蘿美",     imported: true  }
+
+      - crop: 芥菜
+        aliases: [大菜, 刈菜, 客家鹹菜, 娃娃菜]
+        codes:
+          - { code: LJ5, name: "芥菜 翡翠娃娃菜", imported: false }
+
+      - crop: 茼蒿
+        aliases: [菊花菜, 皇帝菜, 山茼蒿]
+        codes:
+          - { code: LL2, name: "茼蒿 山茼蒿", imported: false }
+
+      - crop: 油菜
+        aliases: [菜薹, 小松菜, 油菜花]
+        codes:
+          - { code: LN2, name: "油菜 小松菜",  imported: false }
+          - { code: LN3, name: "油菜 油菜花",  imported: false }
+
+      - crop: 羅勒
+        aliases: [九層塔, 甜羅勒, 打拋葉]
+        codes:
+          - { code: LP3, name: "羅勒", imported: false }
+
+      - crop: 海菜
+        aliases: [水蓮, 龍鬚菜]
+        codes:
+          - { code: LT3, name: "海菜 水蓮", imported: false }
+
+    菇蕈類:   # code prefix: M（Mushrooms）
+
+      - crop: 鴻喜菇
+        aliases: [玉蕈, 本佔菇, 鮮菇]
+        codes:
+          - { code: MK0, name: "鴻喜菇 其他", imported: false }
+          - { code: MK1, name: "鴻喜菇",       imported: false }
+          - { code: MK2, name: "鴻喜菇 盒裝",  imported: false }
+
+    根莖類:   # code prefix: S（Root / Stem vegetables）
+
+      - crop: 蘿蔔
+        aliases: [白蘿蔔, 菜頭, 甜菜根]
+        codes:
+          - { code: SA7, name: "蘿蔔 甜菜根", imported: false }
+
+      - crop: 芋
+        aliases: [芋頭, 芋仔, 芋角]
+        codes:
+          - { code: SJ5, name: "芋 芋角", imported: false }
+
+      - crop: 甘薯
+        aliases: [地瓜, 番薯, 紅薯]
+        codes:
+          - { code: SO1, name: "甘薯 臺農57號", imported: false }
+          - { code: SO3, name: "甘薯 臺農66號", imported: false }
+
+      - crop: 薑
+        aliases: [老薑, 嫩薑, 粉薑, 竹薑, 薑黃]
+        codes:
+          - { code: SP4, name: "薑 竹薑", imported: false }
+          - { code: SP5, name: "薑 薑黃", imported: false }
+
+      - crop: 茭白筍
+        aliases: [美人腿, 茭筍, 高筍]
+        codes:
+          - { code: SQ1, name: "茭白筍 帶殼", imported: false }
+          - { code: SQ2, name: "茭白筍 青殼", imported: false }
+
+      - crop: 薯蕷
+        aliases: [山藥, 淮山, 日本山藥]
+        codes:
+          - { code: SU21, name: "薯蕷 白薯蕷 人參", imported: false }
+
+      - crop: 蘆筍
+        aliases: [石刁柏, 龍鬚菜, 白蘆筍, 綠蘆筍]
+        codes:
+          - { code: SV91, name: "蘆筍 進口 白蘆筍", imported: true }
+          - { code: SV92, name: "蘆筍 進口 綠蘆筍", imported: true }
+          - { code: SV93, name: "蘆筍 進口 蘆筍花", imported: true }
+
+      - crop: 晚香玉筍
+        aliases: [玉簪花苞]
+        codes:
+          - { code: SZ7, name: "晚香玉筍", imported: false }
+
+      - crop: 香茅
+        aliases: [檸檬草, 香茅草]
+        codes:
+          - { code: SZ8, name: "香茅", imported: false }
+
+  # ──────────────────────────────────────────────────────────────────────────
+  水果:
+
+    漿果類:
+
+      - crop: 藍莓
+        aliases: [越橘, 藍黑莓]
+        codes:
+          - { code: "46",  name: "藍莓",      imported: false }
+          - { code: "469", name: "藍莓 進口",  imported: true  }
+
+      - crop: 小番茄
+        aliases: [聖女番茄, 玉女番茄, 櫻桃番茄, 小玉番茄]
+        codes:
+          - { code: "74", name: "小番茄 玉女", imported: false }
+
+      - crop: 紅龍果
+        aliases: [火龍果, 仙蜜果]
+        codes:
+          - { code: "811", name: "紅龍果 白肉",       imported: false }
+          - { code: "812", name: "紅龍果 紅肉",       imported: false }
+          - { code: "813", name: "紅龍果 雙色紅龍果", imported: false }
+          - { code: "819", name: "紅龍果 進口",       imported: true  }
+
+      - crop: 樹葡萄
+        aliases: [嘉寶果, 珍寶果]
+        codes:
+          - { code: "88", name: "樹葡萄", imported: false }
+
+    熱帶水果類:
+
+      - crop: 香蕉
+        aliases: [弓蕉, 芎蕉]
+        codes:
+          - { code: A3, name: "香蕉 旦蕉", imported: false }
+          - { code: A4, name: "香蕉 越旦", imported: false }
+
+      - crop: 鳳梨
+        aliases: [菠蘿, 旺來]
+        codes:
+          - { code: B8, name: "鳳梨 西瓜鳳梨", imported: false }
+
+      - crop: 黃金果
+        aliases: [蛋黃果, 仙桃]
+        codes:
+          - { code: G2, name: "黃金果", imported: false }
+
+      - crop: 榴槤蜜
+        aliases: [木波羅, 波羅蜜]
+        codes:
+          - { code: G91, name: "榴槤蜜", imported: false }
+
+      - crop: 番石榴
+        aliases: [芭樂, 拔仔, 紅心芭樂]
+        codes:
+          - { code: P2, name: "番石榴 紅心", imported: false }
+
+      - crop: 蓮霧
+        aliases: [輦霧, 爪哇蒲桃]
+        codes:
+          - { code: Q2, name: "蓮霧 子彈型",   imported: false }
+          - { code: Q3, name: "蓮霧 翠玉",     imported: false }
+          - { code: Q4, name: "蓮霧 巴掌蓮霧", imported: false }
+          - { code: Q5, name: "蓮霧 黑糖芭比", imported: false }
+
+      - crop: 芒果
+        aliases: [檬果, 愛文芒果, 金煌芒果]
+        codes:
+          - { code: R10, name: "芒果 西施", imported: false }
+          - { code: R31, name: "芒果 夏雪", imported: false }
+
+    柑橘類:
+
+      - crop: 柑橘
+        aliases: [橘子, 柑仔, 椪柑]
+        codes:
+          - { code: C0, name: "柑橘 其他",  imported: false }
+          - { code: C6, name: "佛利蒙柑",   imported: false }
+          - { code: C7, name: "豔陽柑",     imported: false }
+          - { code: C8, name: "珍珠柑",     imported: false }
+          - { code: C9, name: "柑橘 進口",  imported: true  }
+
+      - crop: 雜柑
+        aliases: [黃金檸檬, 檸檬, 萊姆]
+        codes:
+          - { code: F6, name: "雜柑 黃金檸檬", imported: false }
+
+    瓜果類:
+
+      - crop: 西瓜
+        aliases: [寒瓜, 甜美人西瓜]
+        codes:
+          - { code: T8, name: "西瓜 甜美人", imported: false }
+
+      - crop: 甜瓜
+        aliases: [哈密瓜, 香瓜]
+        codes:
+          - { code: V2, name: "甜瓜 溫室吊瓜", imported: false }
+
+      - crop: 洋香瓜
+        aliases: [哈密瓜, 美濃瓜, 阿露斯]
+        codes:
+          - { code: W8, name: "洋香瓜 阿露斯", imported: false }
+
+    仁果類:
+
+      - crop: 梨
+        aliases: [水梨, 寶島甘露梨, 鴨梨]
+        codes:
+          - { code: O10, name: "梨 寶島甘露梨", imported: false }
+
+    其他:
+
+      - crop: 奇異果
+        aliases: [獼猴桃, 奇果, 黃金奇異果]
+        codes:
+          - { code: G4, name: "奇異果", imported: false }
+
+      - crop: 香瓜梨
+        aliases: [霸王果, 帕帕亞]
+        codes:
+          - { code: G5, name: "香瓜梨", imported: false }

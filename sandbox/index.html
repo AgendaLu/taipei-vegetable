@@ -1,0 +1,161 @@
+<!DOCTYPE html>
+<html lang="zh-Hant">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>台北菜價追蹤（沙盒）</title>
+
+  <!-- Tailwind CSS v4 Play CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <!-- D3.js v7 -->
+  <script src="https://cdn.jsdelivr.net/npm/d3@7/dist/d3.min.js"></script>
+
+  <!-- Noto Sans TC -->
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Noto+Sans+TC:wght@400;500;600;700&display=swap"
+    rel="stylesheet"
+  />
+
+  <style>
+    * { font-family: 'Noto Sans TC', sans-serif; }
+    .axis text { fill: #94a3b8; font-size: 11px; }
+    .axis line, .axis path { stroke: #e2e8f0; }
+    .axis .domain { stroke: #e2e8f0; }
+    .grid line { stroke: #f1f5f9; stroke-dasharray: 3 3; }
+    .grid path { stroke: none; }
+    #chart-tooltip {
+      position: fixed;
+      background: white;
+      border: 1px solid #e2e8f0;
+      border-radius: 10px;
+      padding: 10px 14px;
+      font-size: 13px;
+      line-height: 1.6;
+      pointer-events: none;
+      box-shadow: 0 8px 24px -4px rgba(0,0,0,0.10);
+      opacity: 0;
+      transition: opacity 0.12s;
+      z-index: 50;
+      min-width: 160px;
+    }
+    .days-btn.active {
+      background-color: #ecfdf5;
+      color: #059669;
+      font-weight: 600;
+    }
+    .crop-card.selected {
+      outline: 2px solid #34d399;
+      outline-offset: 2px;
+    }
+  </style>
+</head>
+
+<body class="bg-slate-50 min-h-screen text-slate-800">
+
+  <!-- Sandbox Banner -->
+  <div class="bg-amber-50 border-b border-amber-200 text-amber-700 text-xs text-center py-2 px-4 flex items-center justify-center gap-2">
+    <span>🧪</span>
+    <span>沙盒模式 — 使用模擬資料（<code class="bg-amber-100 px-1 rounded">sandbox/data/</code>），非真實行情</span>
+  </div>
+
+  <!-- Header -->
+  <header class="bg-white border-b border-slate-100 sticky top-0 z-20 shadow-sm">
+    <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <span class="text-3xl leading-none select-none">🥦</span>
+        <div>
+          <h1 class="text-base sm:text-lg font-bold text-slate-800 leading-tight">
+            台北菜價追蹤
+          </h1>
+          <p class="text-xs text-slate-400 hidden sm:block">農業部大盤交易資料</p>
+        </div>
+      </div>
+      <span id="updated-at" class="text-xs text-slate-400 shrink-0"></span>
+    </div>
+  </header>
+
+  <!-- Loading -->
+  <div id="loading" class="flex flex-col items-center justify-center min-h-[70vh] gap-3">
+    <div class="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin"></div>
+    <p class="text-sm text-slate-400">載入資料中…</p>
+  </div>
+
+  <!-- Error / Empty -->
+  <div id="empty-state" class="hidden flex-col items-center justify-center min-h-[70vh] gap-3 text-center px-6">
+    <div class="text-5xl mb-2">🌱</div>
+    <p class="font-semibold text-slate-700">找不到模擬資料</p>
+    <p class="text-sm text-slate-400 max-w-xs">請先執行產生腳本：</p>
+    <code class="mt-2 text-xs bg-slate-100 px-3 py-1.5 rounded-lg text-slate-600">
+      python sandbox/generate_mock.py
+    </code>
+  </div>
+
+  <!-- Main App -->
+  <main id="app" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-10">
+
+    <!-- Summary Cards -->
+    <section>
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">最新行情</h2>
+      <div id="summary-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- Trend Chart -->
+    <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
+      <div class="px-6 pt-6 pb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
+        <h2 class="text-sm font-semibold text-slate-700">價格走勢</h2>
+        <div class="flex flex-wrap items-center gap-2">
+          <select
+            id="crop-select"
+            class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700
+                   focus:outline-none focus:ring-2 focus:ring-emerald-300 cursor-pointer"
+          >
+            <option value="青花菜">🥦 青花菜</option>
+            <option value="牛番茄">🍅 牛番茄</option>
+            <option value="洋蔥">🧅 洋蔥</option>
+          </select>
+          <div class="flex rounded-lg border border-slate-200 overflow-hidden text-sm">
+            <button class="days-btn active px-3 py-1.5 text-slate-500 border-r border-slate-200" data-days="30">30天</button>
+            <button class="days-btn px-3 py-1.5 text-slate-500 border-r border-slate-200" data-days="60">60天</button>
+            <button class="days-btn px-3 py-1.5 text-slate-500" data-days="90">90天</button>
+          </div>
+        </div>
+      </div>
+      <div class="px-6 pt-5 pb-2">
+        <div id="trend-chart" class="w-full" style="height: 300px;"></div>
+      </div>
+      <div id="trend-legend" class="flex flex-wrap gap-5 px-6 pb-5 pt-1"></div>
+    </section>
+
+    <!-- Weekly Digest -->
+    <section>
+      <div class="flex items-baseline gap-3 mb-3">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">本週漲跌</h2>
+        <span id="digest-label" class="text-xs text-slate-400"></span>
+      </div>
+      <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <p class="text-sm font-semibold text-emerald-600 mb-5">📈 漲幅排行</p>
+          <div id="gainers-chart"></div>
+        </div>
+        <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-6">
+          <p class="text-sm font-semibold text-rose-500 mb-5">📉 跌幅排行</p>
+          <div id="losers-chart"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+
+  <div id="chart-tooltip"></div>
+
+  <footer class="text-center text-xs text-slate-400 py-10">
+    資料來源：<span class="text-amber-500 font-medium">模擬資料（sandbox）</span>
+    ・重新整理不影響真實資料庫
+  </footer>
+
+  <!-- 共用同一支 app.js，fetch 路徑相對於此頁面，自動指向 sandbox/data/ -->
+  <script src="../app.js"></script>
+</body>
+</html>

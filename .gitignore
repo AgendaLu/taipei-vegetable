@@ -1,0 +1,26 @@
+# 資料庫（本地執行，不上傳）
+agri_prices.db
+
+# 本地研究與分析（不公開）
+local/
+
+# 沙盒模擬資料（自動產生，不需版控）
+sandbox/data/
+
+# Python
+__pycache__/
+*.py[cod]
+*.egg-info/
+.venv/
+
+# 環境設定
+.env
+
+# 本地開發工具設定
+.claude/
+
+# macOS
+.DS_Store
+
+# 建置產物
+dist/
