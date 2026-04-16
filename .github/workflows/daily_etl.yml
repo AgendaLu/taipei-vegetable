@@ -25,7 +25,9 @@ jobs:
         uses: actions/cache@v4
         with:
           path: agri_prices.db
-          key: agri-db-${{ runner.os }}-${{ hashFiles('etl/db.py') }}
+          # run_id 保證每次都寫入新 cache，restore-keys 確保讀取最近一筆
+          # 避免 hashFiles('db.py') 導致 schema 異動時資料庫從零重建
+          key: agri-db-${{ runner.os }}-${{ github.run_id }}
           restore-keys: |
             agri-db-${{ runner.os }}-
 
