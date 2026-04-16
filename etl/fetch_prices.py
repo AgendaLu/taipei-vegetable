@@ -8,15 +8,27 @@ etl/fetch_prices.py
 """
 import argparse
 import time
+import warnings
 from datetime import date, datetime, timedelta
 
 import requests
+import urllib3
+
+# 農業部 data.moa.gov.tw 的 SSL 憑證缺少 Subject Key Identifier，
+# 不符合 RFC 5280，Python 3.13+ 會拒絕。略過驗證並壓住警告。
+urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+SSL_VERIFY = False
 
 from etl.db import DB_PATH, get_db, log_run, write_records
 
 API_URL   = "https://data.moa.gov.tw/Service/OpenData/FromM/FarmTransData.aspx"
-CROPS     = ["青花菜", "牛番茄", "洋蔥"]
-MARKETS   = ["台北一", "台北二", "三重", "桃園"]
+# API Crop 參數為子字串比對，以下為能正確命中的最短字串：
+#   花椰菜 → 花椰菜-青梗（即青花菜）
+#   牛番茄 → 番茄-牛番茄
+#   洋蔥   → 洋蔥-本產、洋蔥-進口
+# Market 參數同樣子字串比對；「桃園」不匹配，須用「桃農」
+CROPS     = ["花椰菜", "牛番茄", "洋蔥"]
+MARKETS   = ["台北一", "台北二", "三重", "桃農"]
 PAGE_SIZE = 1000
 DELAY     = 0.5  # 每次請求間隔秒數
 
@@ -43,6 +55,7 @@ def fetch_one(target: date, market: str, crop: str) -> tuple[list[dict], str]:
                     "Crop": crop,
                 },
                 timeout=30,
+                verify=SSL_VERIFY,
             )
             resp.raise_for_status()
             batch = resp.json()
