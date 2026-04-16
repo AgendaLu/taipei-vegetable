@@ -4,10 +4,18 @@ const MARKET_COLORS = {
   '台北一': '#10b981', // emerald
   '台北二': '#3b82f6', // blue
   '三重':   '#f59e0b', // amber
-  '桃園':   '#a855f7', // purple
+  '桃農':   '#a855f7', // purple
 };
 
 const CROP_EMOJI = { '青花菜': '🥦', '牛番茄': '🍅', '洋蔥': '🧅' };
+
+// 批發 → 零售估算倍數
+// 青花菜易損耗、運費高，加成最大；洋蔥耐放，加成最小
+const RETAIL_MULTIPLIER = {
+  '青花菜': 3.0,
+  '牛番茄': 2.5,
+  '洋蔥':   2.0,
+};
 
 // ─── App State ────────────────────────────────────────────────────────────────
 
@@ -56,6 +64,10 @@ function renderSummaryCards(latest, history) {
         : 'bg-slate-100 text-slate-500';
     const arrow = isUp ? '▲' : isDown ? '▼' : '●';
 
+    const multiplier  = RETAIL_MULTIPLIER[crop] || 2.5;
+    const retailPrice = avgPrice != null ? Math.round(avgPrice * multiplier) : null;
+    const retailStr   = retailPrice != null ? `約 $${retailPrice}` : '—';
+
     return `
       <div
         class="crop-card bg-white rounded-2xl border border-slate-200 shadow-sm p-5
@@ -70,7 +82,14 @@ function renderSummaryCards(latest, history) {
         </div>
         <div class="text-2xl font-bold tracking-tight">${priceStr}</div>
         <div class="text-sm text-slate-500 mt-0.5">
-          ${crop} <span class="text-slate-400 text-xs">元/公斤</span>
+          ${crop} <span class="text-slate-400 text-xs">批發均價・元/公斤</span>
+        </div>
+        <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between"
+             title="批發價 × ${multiplier} 倍估算，含通路、損耗、人力成本，僅供參考">
+          <span class="text-xs text-slate-400">估算零售</span>
+          <span class="text-sm font-semibold text-slate-600">
+            ${retailStr} <span class="text-xs font-normal text-slate-400">元/公斤</span>
+          </span>
         </div>
         <div id="sparkline-${CSS.escape(crop)}" class="mt-3" style="height:44px;"></div>
       </div>
