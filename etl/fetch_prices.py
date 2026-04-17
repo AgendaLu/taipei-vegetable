@@ -29,9 +29,14 @@ CROP_CODES = {
 }
 
 # 僅保留以下市場（MarketName 完全比對）
-TARGET_MARKETS = {"台北一", "台北二", "三重區", "桃農"}
+TARGET_MARKETS = {"台北一", "台北二", "三重區", "板橋區"}
 
 DELAY = 0.3
+
+
+def to_minguo(d: date) -> str:
+    """Convert ISO date to 民國年格式 e.g. 2026-04-17 → 115.04.17"""
+    return f"{d.year - 1911}.{d.month:02d}.{d.day:02d}"
 
 
 def fetch_crop_range(start: date, end: date, crop_code: str) -> tuple[list[dict], str]:
@@ -44,12 +49,12 @@ def fetch_crop_range(start: date, end: date, crop_code: str) -> tuple[list[dict]
             resp = requests.get(
                 API_BASE,
                 params={
-                    "apikey":    API_KEY,
-                    "format":    "json",
-                    "CropCode":  crop_code,
-                    "StartDate": start.strftime("%Y-%m-%d"),
-                    "EndDate":   end.strftime("%Y-%m-%d"),
-                    "Page":      page,
+                    "apikey":     API_KEY,
+                    "format":     "json",
+                    "CropCode":   crop_code,
+                    "Start_time": to_minguo(start),
+                    "End_time":   to_minguo(end),
+                    "Page":       page,
                 },
                 timeout=30,
             )

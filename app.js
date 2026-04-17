@@ -4,7 +4,7 @@ const MARKET_COLORS = {
   '台北一': '#10b981', // emerald
   '台北二': '#3b82f6', // blue
   '三重':   '#f59e0b', // amber
-  '桃農':   '#a855f7', // purple
+  '板橋':   '#a855f7', // purple
 };
 
 const CROP_EMOJI = { '青花菜': '🥦', '牛番茄': '🍅', '洋蔥': '🧅' };
@@ -24,6 +24,7 @@ const state = {
   history: null,
   digest: null,
   latest: null,
+  yoy: null,
 };
 
 // 儲存各品項當前批發均價，供 modal 和刪除後重繪使用
@@ -56,12 +57,15 @@ function clearAllReports() {
 // ─── Data Loading ─────────────────────────────────────────────────────────────
 
 async function loadData() {
-  const [history, digest, latest] = await Promise.all([
-    fetch('data/history.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-    fetch('data/weekly_digest.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
-    fetch('data/latest.json').then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }),
+  const v = Date.now();
+  const get = url => fetch(`${url}?v=${v}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  const [history, digest, latest, yoy] = await Promise.all([
+    get('data/history.json'),
+    get('data/weekly_digest.json'),
+    get('data/latest.json'),
+    get('data/yoy.json'),
   ]);
-  return { history, digest, latest };
+  return { history, digest, latest, yoy };
 }
 
 // ─── Summary Cards ────────────────────────────────────────────────────────────
@@ -109,6 +113,9 @@ function renderSummaryCards(latest, history) {
         <div class="text-sm text-slate-500 mt-0.5">
           ${crop} <span class="text-slate-400 text-xs">批發均價・元/公斤</span>
         </div>
+        <!-- YoY 同月對比 -->
+        <div id="yoy-sec-${CSS.escape(crop)}"
+             class="mt-2 pt-2 border-t border-slate-100"></div>
         <!-- 零售估算區塊（由 renderRetailSection 動態填入） -->
         <div id="retail-sec-${CSS.escape(crop)}"
              class="mt-2 pt-2 border-t border-slate-100"></div>
@@ -117,15 +124,13 @@ function renderSummaryCards(latest, history) {
     `;
   }).join('');
 
+  crops.forEach(crop => renderYoySection(crop));
   crops.forEach(crop => renderSparkline(crop, history));
   crops.forEach(crop => renderRetailSection(crop, cropWholesalePrices[crop]));
 
   document.querySelectorAll('.crop-card').forEach(card => {
     card.addEventListener('click', () => {
-      state.crop = card.dataset.crop;
-      document.getElementById('crop-select').value = state.crop;
-      updateCardSelection();
-      renderTrendChart();
+      openHistoryModal(card.dataset.crop);
     });
   });
 
@@ -405,18 +410,130 @@ function renderReportsPanel() {
   });
 }
 
+// ─── Interpolation ────────────────────────────────────────────────────────────
+
+/**
+ * 將稀疏的 {date, mid_price} 序列填滿連續日期，
+ * 缺值用線性插值補齊，讓折線圖不出現斷點。
+ */
+function interpolateSeries(rows, cutoff) {
+  if (!rows.length) return [];
+
+  const fmt    = d3.timeFormat('%Y-%m-%d');
+  const parse  = d3.timeParse('%Y-%m-%d');
+  const sorted = [...rows].sort((a, b) => a.date.localeCompare(b.date));
+
+  // 建立「查表」：date string → mid_price
+  const known = new Map(sorted.map(r => [r.date, r.mid_price]));
+
+  // 連續日曆天（從 cutoff 到最後一筆）
+  const start = cutoff ? new Date(Math.max(parse(sorted[0].date), cutoff)) : parse(sorted[0].date);
+  const end   = parse(sorted[sorted.length - 1].date);
+  const allDates = d3.timeDays(start, d3.timeDay.offset(end, 1)).map(fmt);
+
+  // 線性插值
+  const result = [];
+  for (let i = 0; i < allDates.length; i++) {
+    const d = allDates[i];
+    if (known.has(d)) {
+      result.push({ date: d, mid_price: known.get(d) });
+    } else {
+      let pi = i - 1; while (pi >= 0 && !known.has(allDates[pi])) pi--;
+      let ni = i + 1; while (ni < allDates.length && !known.has(allDates[ni])) ni++;
+      let price;
+      if (pi >= 0 && ni < allDates.length) {
+        const p0 = known.get(allDates[pi]), p1 = known.get(allDates[ni]);
+        price = p0 + (p1 - p0) * (i - pi) / (ni - pi);
+      } else if (pi >= 0) {
+        price = known.get(allDates[pi]);
+      } else if (ni < allDates.length) {
+        price = known.get(allDates[ni]);
+      }
+      if (price != null) result.push({ date: d, mid_price: price });
+    }
+  }
+  return result;
+}
+
+// ─── YoY Section ──────────────────────────────────────────────────────────────
+
+function renderYoySection(crop) {
+  const el = document.getElementById(`yoy-sec-${CSS.escape(crop)}`);
+  if (!el || !state.yoy) return;
+
+  const now = new Date();
+  const currentYM = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`;
+  const mm = currentYM.slice(5); // "04"
+
+  const getRow = ym => state.yoy.rows.find(r => r.crop === crop && r.year_month === ym);
+  const currentRow = getRow(currentYM);
+
+  // 保留現有核取狀態
+  const years = [2025, 2024];
+  const checked = {};
+  years.forEach(y => {
+    const cb = el.querySelector(`[data-year="${y}"]`);
+    checked[y] = cb ? cb.checked : false;
+  });
+
+  // 核取方塊列
+  const cbsHtml = years.map(y => `
+    <label class="flex items-center gap-1 cursor-pointer select-none" onclick="event.stopPropagation()">
+      <input type="checkbox" class="yoy-cb accent-emerald-500 cursor-pointer"
+             data-crop="${crop}" data-year="${y}" ${checked[y] ? 'checked' : ''}>
+      <span class="text-xs text-slate-400">${y}</span>
+    </label>
+  `).join('');
+
+  // 比較列（只顯示已勾選的年份）
+  let compareHtml = '';
+  years.filter(y => checked[y]).forEach(y => {
+    const prevRow = getRow(`${y}-${mm}`);
+    if (!prevRow || !currentRow) return;
+    const diff    = currentRow.avg_mid - prevRow.avg_mid;
+    const pct     = (diff / prevRow.avg_mid * 100).toFixed(1);
+    const sign    = diff >= 0 ? '+' : '';
+    const color   = diff >= 0 ? 'text-emerald-600' : 'text-rose-500';
+    const arrow   = diff >= 0 ? '▲' : '▼';
+    compareHtml += `
+      <div class="flex items-center justify-between mt-1.5">
+        <span class="text-xs text-slate-400">${y} 年 ${mm} 月均</span>
+        <span class="text-xs">
+          <span class="text-slate-500">$${prevRow.avg_mid}</span>
+          <span class="ml-1.5 font-semibold ${color}">${arrow} ${sign}${pct}%</span>
+        </span>
+      </div>`;
+  });
+
+  el.innerHTML = `
+    <div class="flex items-center gap-2">
+      <span class="text-xs text-slate-400 shrink-0">YoY 對比</span>
+      <div class="flex gap-3 ml-auto">${cbsHtml}</div>
+    </div>
+    ${compareHtml}
+  `;
+
+  el.querySelectorAll('.yoy-cb').forEach(cb => {
+    cb.addEventListener('change', e => {
+      e.stopPropagation();
+      renderYoySection(crop);
+    });
+  });
+}
+
 // ─── Sparkline ────────────────────────────────────────────────────────────────
 
 function renderSparkline(crop, history) {
   const el = document.getElementById(`sparkline-${CSS.escape(crop)}`);
   if (!el) return;
 
-  const data = (history.rows || [])
+  const raw = (history.rows || [])
     .filter(r => r.crop === crop && r.market === '台北一' && r.mid_price != null)
     .sort((a, b) => a.date.localeCompare(b.date))
     .slice(-30);
 
-  if (data.length < 2) return;
+  if (raw.length < 2) return;
+  const data = interpolateSeries(raw);
 
   const W = el.clientWidth || 220;
   const H = 44;
@@ -507,9 +624,16 @@ function renderTrendChart() {
     return;
   }
 
-  const byMarket = d3.group(filtered, r => r.market);
-  const allDates = filtered.map(r => parseDate(r.date));
-  const allPrices = filtered.map(r => r.mid_price);
+  const byMarketRaw = d3.group(filtered, r => r.market);
+
+  // 插值：補齊各市場缺漏日期，確保曲線連續
+  const byMarket = new Map();
+  byMarketRaw.forEach((rows, market) => {
+    byMarket.set(market, interpolateSeries(rows, cutoff));
+  });
+
+  const allDates  = [...byMarket.values()].flatMap(s => s.map(r => parseDate(r.date)));
+  const allPrices = [...byMarket.values()].flatMap(s => s.map(r => r.mid_price));
 
   // SVG
   const svg = d3.select(container)
@@ -568,19 +692,17 @@ function renderTrendChart() {
     .attr('font-size', '10px')
     .text('元 / 公斤');
 
-  // Line + Area generators
+  // Line + Area generators（插值後不需要 defined 過濾）
   const line = d3.line()
     .x(d => x(parseDate(d.date)))
     .y(d => y(d.mid_price))
-    .curve(d3.curveMonotoneX)
-    .defined(d => d.mid_price != null);
+    .curve(d3.curveMonotoneX);
 
   const area = d3.area()
     .x(d => x(parseDate(d.date)))
     .y0(height)
     .y1(d => y(d.mid_price))
-    .curve(d3.curveMonotoneX)
-    .defined(d => d.mid_price != null);
+    .curve(d3.curveMonotoneX);
 
   const chartG = g.append('g').attr('clip-path', 'url(#clip-trend)');
 
@@ -813,6 +935,281 @@ function renderDigestBars(containerId, data, color) {
     .text(d => `均 $${d.this_avg}`);
 }
 
+// ─── History Modal ────────────────────────────────────────────────────────────
+
+const hmState = { crop: null, view: 'monthly' };
+
+function openHistoryModal(crop) {
+  hmState.crop = crop;
+  hmState.view = 'monthly';
+
+  document.getElementById('hm-title').textContent =
+    `${CROP_EMOJI[crop] || '🌿'} ${crop} 歷史行情`;
+
+  // Tab reset
+  document.querySelectorAll('.hm-tab').forEach(t =>
+    t.classList.toggle('active', t.dataset.view === 'monthly'));
+
+  renderHmStats(crop);
+  renderHmChart(crop);
+  document.getElementById('history-modal').classList.remove('hidden');
+}
+
+function closeHistoryModal() {
+  document.getElementById('history-modal').classList.add('hidden');
+  d3.select('#hm-chart').selectAll('*').remove();
+}
+
+function renderHmStats(crop) {
+  const el = document.getElementById('hm-stats');
+  const now = new Date();
+  const mm  = String(now.getMonth() + 1).padStart(2, '0');
+  const getRow = y => state.yoy.rows.find(r => r.crop === crop && r.year_month === `${y}-${mm}`);
+
+  const cur  = getRow(now.getFullYear());
+  const y25  = getRow(2025);
+  const y24  = getRow(2024);
+
+  const pill = (label, row, base) => {
+    if (!row || !base) return '';
+    const pct  = ((base.avg_mid - row.avg_mid) / row.avg_mid * 100).toFixed(1);
+    const up   = pct >= 0;
+    const cls  = up ? 'bg-emerald-50 text-emerald-700' : 'bg-rose-50 text-rose-600';
+    return `
+      <div class="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2 ${cls}">
+        <span class="text-xs opacity-70">${label}</span>
+        <span class="text-sm font-bold">$${row.avg_mid}
+          <span class="text-xs font-semibold ml-1">${up ? '▲' : '▼'} ${Math.abs(pct)}%</span>
+        </span>
+      </div>`;
+  };
+
+  el.innerHTML = `
+    ${cur ? `<div class="flex flex-col items-start gap-0.5 rounded-xl px-3 py-2 bg-slate-100">
+      <span class="text-xs text-slate-500">本月均價</span>
+      <span class="text-sm font-bold text-slate-800">$${cur.avg_mid}</span>
+    </div>` : ''}
+    ${pill(`vs 去年 ${mm} 月`, y25, cur)}
+    ${pill(`vs 前年 ${mm} 月`, y24, cur)}
+  `;
+}
+
+function renderHmChart(crop) {
+  const container = document.getElementById('hm-chart');
+  d3.select(container).selectAll('*').remove();
+
+  if (hmState.view === 'monthly') {
+    renderHmMonthly(crop, container);
+  } else {
+    renderHmDaily(crop, container);
+  }
+}
+
+function renderHmMonthly(crop, container) {
+  const rows = (state.yoy.rows || [])
+    .filter(r => r.crop === crop)
+    .sort((a, b) => a.year_month.localeCompare(b.year_month));
+
+  if (!rows.length) return;
+
+  const margin = { top: 8, right: 16, bottom: 40, left: 50 };
+  const W = container.clientWidth  || 600;
+  const H = container.clientHeight || 240;
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top  - margin.bottom;
+
+  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const parseYM  = d3.timeParse('%Y-%m');
+  const fmtTick  = d3.timeFormat('%y/%m');
+
+  const x = d3.scaleTime()
+    .domain(d3.extent(rows, r => parseYM(r.year_month)))
+    .range([0, w]);
+
+  const prices = rows.map(r => r.avg_mid);
+  const pad    = (d3.max(prices) - d3.min(prices)) * 0.18 || d3.max(prices) * 0.15;
+  const y = d3.scaleLinear()
+    .domain([d3.min(prices) - pad, d3.max(prices) + pad])
+    .range([h, 0]).nice();
+
+  // Grid
+  g.append('g').attr('class', 'grid')
+    .call(d3.axisLeft(y).ticks(5).tickSize(-w).tickFormat(''))
+    .select('.domain').remove();
+
+  // Axes
+  g.append('g').attr('class', 'axis').attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(d3.timeMonth.every(3)).tickFormat(fmtTick));
+  g.append('g').attr('class', 'axis')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`));
+
+  // 年份分隔線
+  [2025, 2026].forEach(yr => {
+    const xPos = x(new Date(yr, 0, 1));
+    if (xPos > 0 && xPos < w) {
+      g.append('line')
+        .attr('x1', xPos).attr('x2', xPos)
+        .attr('y1', 0).attr('y2', h)
+        .attr('stroke', '#cbd5e1').attr('stroke-dasharray', '4 3').attr('stroke-width', 1);
+      g.append('text')
+        .attr('x', xPos + 4).attr('y', 12)
+        .attr('fill', '#94a3b8').attr('font-size', '10px')
+        .text(`${yr}`);
+    }
+  });
+
+  // Gradient
+  const gradId = 'hm-grad';
+  const defs = svg.append('defs');
+  const grad = defs.append('linearGradient').attr('id', gradId)
+    .attr('x1', 0).attr('y1', 0).attr('x2', 0).attr('y2', 1);
+  grad.append('stop').attr('offset', '0%').attr('stop-color', '#10b981').attr('stop-opacity', 0.25);
+  grad.append('stop').attr('offset', '100%').attr('stop-color', '#10b981').attr('stop-opacity', 0);
+
+  const area = d3.area()
+    .x(r => x(parseYM(r.year_month)))
+    .y0(h).y1(r => y(r.avg_mid))
+    .curve(d3.curveMonotoneX);
+  const line = d3.line()
+    .x(r => x(parseYM(r.year_month)))
+    .y(r => y(r.avg_mid))
+    .curve(d3.curveMonotoneX);
+
+  g.append('path').datum(rows).attr('fill', `url(#${gradId})`).attr('d', area);
+
+  const path = g.append('path').datum(rows)
+    .attr('fill', 'none').attr('stroke', '#10b981')
+    .attr('stroke-width', 2.5).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+    .attr('d', line);
+
+  const len = path.node().getTotalLength();
+  path.attr('stroke-dasharray', `${len} ${len}`).attr('stroke-dashoffset', len)
+    .transition().duration(1000).ease(d3.easeLinear).attr('stroke-dashoffset', 0);
+
+  // Tooltip
+  const tooltip  = d3.select('#chart-tooltip');
+  const bisector = d3.bisector(r => parseYM(r.year_month)).center;
+
+  svg.append('rect')
+    .attr('width', w).attr('height', h)
+    .attr('transform', `translate(${margin.left},${margin.top})`)
+    .attr('fill', 'none').attr('pointer-events', 'all')
+    .on('mousemove', function(event) {
+      const [mx] = d3.pointer(event, this);
+      const idx  = Math.max(0, Math.min(rows.length - 1, bisector(rows, x.invert(mx))));
+      const r    = rows[idx];
+      tooltip.style('opacity', 1)
+        .style('left', `${event.clientX + 16}px`)
+        .style('top',  `${event.clientY - 48}px`)
+        .html(`
+          <div style="font-weight:600;color:#334155;margin-bottom:4px;">${r.year_month}</div>
+          <div style="color:#475569;">月均 <strong style="color:#059669;">$${r.avg_mid}</strong> 元/公斤</div>
+          <div style="color:#94a3b8;font-size:11px;">交易量 ${(r.volume_kg/1000).toFixed(0)} 噸</div>
+        `);
+    })
+    .on('mouseleave', () => tooltip.style('opacity', 0));
+}
+
+function renderHmDaily(crop, container) {
+  const cutoff = new Date();
+  cutoff.setDate(cutoff.getDate() - 90);
+
+  const parseDate = d3.timeParse('%Y-%m-%d');
+  const byMarket  = d3.group(
+    (state.history.rows || []).filter(r =>
+      r.crop === crop && r.mid_price != null && parseDate(r.date) >= cutoff),
+    r => r.market
+  );
+
+  if (!byMarket.size) {
+    d3.select(container).append('p')
+      .attr('class', 'text-slate-400 text-sm text-center pt-16')
+      .text('此時段無資料');
+    return;
+  }
+
+  // 圖例 HTML（放在 SVG 外，避免與 X 軸重疊）
+  const legendDiv = document.createElement('div');
+  legendDiv.style.cssText = 'display:flex;gap:16px;padding:0 4px 6px;flex-wrap:wrap;';
+  byMarket.forEach((_, market) => {
+    const color = MARKET_COLORS[market] || '#64748b';
+    legendDiv.insertAdjacentHTML('beforeend', `
+      <div style="display:flex;align-items:center;gap:5px;font-size:12px;color:#64748b;">
+        <span style="width:20px;height:3px;border-radius:2px;background:${color};display:inline-block;"></span>
+        ${market}
+      </div>`);
+  });
+  container.appendChild(legendDiv);
+
+  const margin = { top: 8, right: 16, bottom: 30, left: 50 };
+  const W = container.clientWidth  || 600;
+  const H = (container.clientHeight || 240) - legendDiv.offsetHeight;
+  const w = W - margin.left - margin.right;
+  const h = H - margin.top  - margin.bottom;
+
+  const svg = d3.select(container).append('svg').attr('width', W).attr('height', H);
+  const g   = svg.append('g').attr('transform', `translate(${margin.left},${margin.top})`);
+
+  const interpByMarket = new Map();
+  byMarket.forEach((rows, market) =>
+    interpByMarket.set(market, interpolateSeries(rows, cutoff)));
+
+  const allDates  = [...interpByMarket.values()].flatMap(s => s.map(r => parseDate(r.date)));
+  const allPrices = [...interpByMarket.values()].flatMap(s => s.map(r => r.mid_price));
+
+  const x = d3.scaleTime().domain(d3.extent(allDates)).range([0, w]);
+  const pad = (d3.max(allPrices) - d3.min(allPrices)) * 0.15 || d3.max(allPrices) * 0.15;
+  const y = d3.scaleLinear()
+    .domain([d3.min(allPrices) - pad, d3.max(allPrices) + pad])
+    .range([h, 0]).nice();
+
+  g.append('g').attr('class', 'grid')
+    .call(d3.axisLeft(y).ticks(5).tickSize(-w).tickFormat(''))
+    .select('.domain').remove();
+  g.append('g').attr('class', 'axis').attr('transform', `translate(0,${h})`)
+    .call(d3.axisBottom(x).ticks(8).tickFormat(d => `${d.getMonth()+1}/${d.getDate()}`));
+  g.append('g').attr('class', 'axis')
+    .call(d3.axisLeft(y).ticks(5).tickFormat(d => `$${d}`));
+
+  const clipId = 'hm-daily-clip';
+  svg.append('defs').append('clipPath').attr('id', clipId)
+    .append('rect').attr('width', w).attr('height', h + 4);
+  const chartG = g.append('g').attr('clip-path', `url(#${clipId})`);
+
+  const line = d3.line()
+    .x(r => x(parseDate(r.date))).y(r => y(r.mid_price))
+    .curve(d3.curveMonotoneX);
+
+  interpByMarket.forEach((data, market) => {
+    const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
+    const color  = MARKET_COLORS[market] || '#64748b';
+    const path   = chartG.append('path').datum(sorted)
+      .attr('fill', 'none').attr('stroke', color)
+      .attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .attr('d', line);
+    const len = path.node().getTotalLength();
+    path.attr('stroke-dasharray', `${len} ${len}`).attr('stroke-dashoffset', len)
+      .transition().duration(900).ease(d3.easeLinear).attr('stroke-dashoffset', 0);
+  });
+}
+
+function setupHistoryModal() {
+  document.getElementById('hm-close').addEventListener('click', closeHistoryModal);
+  document.getElementById('history-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('history-modal')) closeHistoryModal();
+  });
+  document.querySelectorAll('.hm-tab').forEach(tab => {
+    tab.addEventListener('click', () => {
+      hmState.view = tab.dataset.view;
+      document.querySelectorAll('.hm-tab').forEach(t =>
+        t.classList.toggle('active', t === tab));
+      renderHmChart(hmState.crop);
+    });
+  });
+}
+
 // ─── Event Handlers ───────────────────────────────────────────────────────────
 
 function setupEventHandlers() {
@@ -840,10 +1237,11 @@ async function init() {
   const emptyEl     = document.getElementById('empty-state');
 
   try {
-    const { history, digest, latest } = await loadData();
+    const { history, digest, latest, yoy } = await loadData();
     state.history = history;
     state.digest  = digest;
     state.latest  = latest;
+    state.yoy     = yoy;
 
     if (!latest.trade_date) throw new Error('no-data');
 
@@ -856,6 +1254,7 @@ async function init() {
     renderSummaryCards(latest, history);
     setupEventHandlers();
     setupModalHandlers();
+    setupHistoryModal();
     renderTrendChart();
     renderWeeklyDigest(digest);
     renderReportsPanel();

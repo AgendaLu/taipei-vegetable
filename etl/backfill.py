@@ -3,7 +3,7 @@ etl/backfill.py
 歷史資料補抓腳本（API v1）
 
 用法：
-    python -m etl.backfill                          # 預設補抓 2026-01-01 至昨日
+    python -m etl.backfill                          # 預設補抓 2024-01-01 至昨日
     python -m etl.backfill --start 2025-01-01
     python -m etl.backfill --start 2025-01-01 --end 2025-12-31
     python -m etl.backfill --dry-run                # 僅印出請求清單
@@ -29,7 +29,7 @@ CROP_CODES = {
     "洋蔥":   ["SD1", "SD9"],
 }
 
-TARGET_MARKETS = {"台北一", "台北二", "三重區", "桃農"}
+TARGET_MARKETS = {"台北一", "台北二", "三重區", "板橋區"}
 
 DELAY = 0.3
 
@@ -38,6 +38,11 @@ DELAY = 0.3
 
 def iso(d: date) -> str:
     return d.strftime("%Y-%m-%d")
+
+
+def to_minguo(d: date) -> str:
+    """Convert ISO date to 民國年格式 e.g. 2024-01-01 → 113.01.01"""
+    return f"{d.year - 1911}.{d.month:02d}.{d.day:02d}"
 
 
 def month_range(start: date, end: date):
@@ -64,12 +69,12 @@ def fetch_batch(start: date, end: date, crop_code: str) -> tuple[list[dict], str
             resp = requests.get(
                 API_BASE,
                 params={
-                    "apikey":    API_KEY,
-                    "format":    "json",
-                    "CropCode":  crop_code,
-                    "StartDate": iso(start),
-                    "EndDate":   iso(end),
-                    "Page":      page,
+                    "apikey":     API_KEY,
+                    "format":     "json",
+                    "CropCode":   crop_code,
+                    "Start_time": to_minguo(start),
+                    "End_time":   to_minguo(end),
+                    "Page":       page,
                 },
                 timeout=30,
             )
@@ -184,7 +189,7 @@ def run_backfill(start: date, end: date, dry_run: bool = False):
 def parse_args():
     p = argparse.ArgumentParser(description="補抓農業部蔬菜交易歷史行情")
     p.add_argument("--start", type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
-                   default=date(2026, 1, 1), help="起始日（YYYY-MM-DD，預設 2026-01-01）")
+                   default=date(2024, 1, 1), help="起始日（YYYY-MM-DD，預設 2024-01-01）")
     p.add_argument("--end",   type=lambda s: datetime.strptime(s, "%Y-%m-%d").date(),
                    default=date.today() - timedelta(days=1), help="結束日（預設昨日）")
     p.add_argument("--dry-run", action="store_true", help="只印清單，不抓取")

@@ -33,7 +33,7 @@ MARKET_MAP = {
     "台北一": "台北一",
     "台北二": "台北二",
     "三重區": "三重",
-    "桃農":   "桃農",
+    "板橋區": "板橋",
 }
 
 CROPS   = list(CROP_MAP.keys())    # ["青花菜", "牛番茄", "洋蔥"]
@@ -268,6 +268,59 @@ def export_weekly_digest(conn) -> dict:
     }
 
 
+# ── YoY 月均 ──────────────────────────────────────────────────────────────────
+
+def export_yoy(conn) -> dict:
+    """
+    各品項每個自然月的四市場加權平均中價與總交易量，供前端做 YoY 比較。
+    加權方式：volume_kg 為權重。
+    """
+    rows = conn.execute(
+        f"""
+        SELECT substr(p.trade_date, 1, 7) AS year_month,
+               c.name                     AS crop,
+               p.mid_price,
+               p.volume_kg
+        FROM produce_daily_prices p
+        JOIN crops   c ON p.crop_id   = c.id
+        JOIN markets m ON p.market_id = m.id
+        WHERE {_crop_where_clause()}
+          AND p.mid_price  IS NOT NULL
+          AND p.volume_kg  IS NOT NULL
+          AND p.volume_kg  > 0
+        ORDER BY year_month, c.name
+        """
+    ).fetchall()
+
+    from collections import defaultdict
+    # key: (year_month, display_crop)  value: list of (mid_price, volume_kg)
+    buckets: dict[tuple, list] = defaultdict(list)
+    for r in rows:
+        dc = _display_crop(r["crop"])
+        if dc:
+            buckets[(r["year_month"], dc)].append((r["mid_price"], r["volume_kg"]))
+
+    output = []
+    for (year_month, crop), pairs in sorted(buckets.items()):
+        total_vol = sum(v for _, v in pairs)
+        wavg_mid  = round(sum(p * v for p, v in pairs) / total_vol, 1)
+        output.append({
+            "year_month": year_month,
+            "crop":       crop,
+            "avg_mid":    wavg_mid,
+            "volume_kg":  round(total_vol),
+        })
+
+    # 找出有資料的品項清單（按 CROPS 順序）
+    crops_present = [c for c in CROPS if any(r["crop"] == c for r in output)]
+
+    return {
+        "generated_at": date.today().isoformat(),
+        "crops":        crops_present,
+        "rows":         output,
+    }
+
+
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 
 def main():
@@ -278,6 +331,7 @@ def main():
         "latest.json":        export_latest(conn),
         "history.json":       export_history(conn),
         "weekly_digest.json": export_weekly_digest(conn),
+        "yoy.json":           export_yoy(conn),
     }
 
     for filename, data in tasks.items():

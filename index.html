@@ -52,6 +52,20 @@
       font-weight: 600;
     }
 
+    /* History modal tab */
+    .hm-tab.active {
+      color: #059669;
+      border-bottom-color: #059669;
+      font-weight: 600;
+    }
+
+    /* History modal slide-up */
+    @media (max-width: 640px) {
+      #history-modal > div {
+        animation: slideUp 0.22s ease-out;
+      }
+    }
+
     /* Crop card ring on selection */
     .crop-card.selected {
       outline: 2px solid #34d399;
@@ -244,6 +258,44 @@
     </div>
   </div>
 
+  <!-- ── History Modal ─────────────────────────────────────────────────────── -->
+  <div id="history-modal"
+       class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center
+              justify-center z-50 hidden">
+    <div class="bg-white w-full sm:max-w-2xl rounded-t-2xl sm:rounded-2xl shadow-2xl
+                flex flex-col max-h-[90vh]">
+
+      <!-- Header -->
+      <div class="flex items-center justify-between px-6 pt-5 pb-3 shrink-0">
+        <div>
+          <h3 id="hm-title" class="font-bold text-slate-800 text-base"></h3>
+          <p class="text-xs text-slate-400 mt-0.5">四市場加權月均價・元／公斤</p>
+        </div>
+        <button id="hm-close"
+                class="w-8 h-8 flex items-center justify-center rounded-full
+                       text-slate-400 hover:bg-slate-100 hover:text-slate-600
+                       transition-colors text-lg leading-none">✕</button>
+      </div>
+
+      <!-- YoY stat pills -->
+      <div id="hm-stats" class="flex gap-3 px-6 pb-3 shrink-0 flex-wrap"></div>
+
+      <!-- Chart -->
+      <div class="px-4 pb-2 shrink-0" style="height:260px;">
+        <div id="hm-chart" class="w-full h-full"></div>
+      </div>
+
+      <!-- Tab toggle -->
+      <div class="flex border-t border-slate-100 shrink-0">
+        <button class="hm-tab active flex-1 py-3 text-sm text-slate-500 border-b-2
+                       border-transparent transition-colors" data-view="monthly">月均走勢</button>
+        <button class="hm-tab flex-1 py-3 text-sm text-slate-500 border-b-2
+                       border-transparent transition-colors" data-view="daily">近期日變化</button>
+      </div>
+
+    </div>
+  </div>
+
   <!-- Shared tooltip -->
   <div id="chart-tooltip"></div>
 
@@ -259,6 +311,6 @@
     ・每日 10:00 自動更新
   </footer>
 
-  <script src="app.js"></script>
+  <script src="app.js?v=6"></script>
 </body>
 </html>
