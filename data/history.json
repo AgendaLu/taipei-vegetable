@@ -12,5 +12,90 @@
     "三重",
     "桃農"
   ],
-  "rows": []
+  "rows": [
+    {
+      "date": "2026-04-17",
+      "crop": "洋蔥",
+      "market": "三重",
+      "mid_price": 26.4,
+      "volume_kg": 5965.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "洋蔥",
+      "market": "台北一",
+      "mid_price": 18.1,
+      "volume_kg": 15301.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "洋蔥",
+      "market": "台北二",
+      "mid_price": 24.9,
+      "volume_kg": 28157.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "洋蔥",
+      "market": "桃農",
+      "mid_price": 13.3,
+      "volume_kg": 3660.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "牛番茄",
+      "market": "三重",
+      "mid_price": 19.5,
+      "volume_kg": 3575.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "牛番茄",
+      "market": "台北一",
+      "mid_price": 37.1,
+      "volume_kg": 21677.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "牛番茄",
+      "market": "台北二",
+      "mid_price": 35.9,
+      "volume_kg": 10718.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "牛番茄",
+      "market": "桃農",
+      "mid_price": 38.2,
+      "volume_kg": 5132.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "青花菜",
+      "market": "三重",
+      "mid_price": 18.1,
+      "volume_kg": 7232.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "青花菜",
+      "market": "台北一",
+      "mid_price": 27.0,
+      "volume_kg": 16316.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "青花菜",
+      "market": "台北二",
+      "mid_price": 22.8,
+      "volume_kg": 6429.0
+    },
+    {
+      "date": "2026-04-17",
+      "crop": "青花菜",
+      "market": "桃農",
+      "mid_price": 17.0,
+      "volume_kg": 7035.0
+    }
+  ]
 }
