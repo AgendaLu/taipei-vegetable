@@ -20,11 +20,15 @@
 
   <style>
     * { font-family: 'Noto Sans TC', sans-serif; }
+
+    /* D3 axis styling */
     .axis text { fill: #94a3b8; font-size: 11px; }
     .axis line, .axis path { stroke: #e2e8f0; }
     .axis .domain { stroke: #e2e8f0; }
     .grid line { stroke: #f1f5f9; stroke-dasharray: 3 3; }
     .grid path { stroke: none; }
+
+    /* Shared tooltip */
     #chart-tooltip {
       position: fixed;
       background: white;
@@ -40,27 +44,47 @@
       z-index: 50;
       min-width: 160px;
     }
+
+    /* Active days button */
     .days-btn.active {
       background-color: #ecfdf5;
       color: #059669;
       font-weight: 600;
     }
+
+    /* Crop card ring on selection */
     .crop-card.selected {
       outline: 2px solid #34d399;
       outline-offset: 2px;
+    }
+
+    /* Market type pill buttons */
+    .market-type-btn {
+      transition: all 0.12s;
+    }
+    .market-type-btn.active {
+      background-color: #ecfdf5;
+      border-color: #34d399;
+      color: #059669;
+      font-weight: 600;
+    }
+
+    /* Modal slide-up on mobile */
+    @media (max-width: 640px) {
+      #retail-modal > div {
+        animation: slideUp 0.2s ease-out;
+      }
+      @keyframes slideUp {
+        from { transform: translateY(40px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+      }
     }
   </style>
 </head>
 
 <body class="bg-slate-50 min-h-screen text-slate-800">
 
-  <!-- Sandbox Banner -->
-  <div class="bg-amber-50 border-b border-amber-200 text-amber-700 text-xs text-center py-2 px-4 flex items-center justify-center gap-2">
-    <span>🧪</span>
-    <span>沙盒模式 — 使用模擬資料（<code class="bg-amber-100 px-1 rounded">sandbox/data/</code>），非真實行情</span>
-  </div>
-
-  <!-- Header -->
+  <!-- ── Header ─────────────────────────────────────────────────────────── -->
   <header class="bg-white border-b border-slate-100 sticky top-0 z-20 shadow-sm">
     <div class="max-w-6xl mx-auto px-4 sm:px-6 py-3 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
@@ -76,29 +100,52 @@
     </div>
   </header>
 
-  <!-- Loading -->
+  <!-- Sandbox banner -->
+  <div class="bg-amber-400 text-amber-900 text-xs font-semibold text-center py-1.5 tracking-wide">
+    🧪 沙盒模式 — 顯示模擬資料，非真實行情
+  </div>
+
+  <!-- ── Loading ────────────────────────────────────────────────────────── -->
   <div id="loading" class="flex flex-col items-center justify-center min-h-[70vh] gap-3">
     <div class="w-8 h-8 rounded-full border-2 border-emerald-400 border-t-transparent animate-spin"></div>
     <p class="text-sm text-slate-400">載入資料中…</p>
   </div>
 
-  <!-- Error / Empty -->
+  <!-- ── Error / Empty ──────────────────────────────────────────────────── -->
   <div id="empty-state" class="hidden flex-col items-center justify-center min-h-[70vh] gap-3 text-center px-6">
     <div class="text-5xl mb-2">🌱</div>
-    <p class="font-semibold text-slate-700">找不到模擬資料</p>
-    <p class="text-sm text-slate-400 max-w-xs">請先執行產生腳本：</p>
+    <p class="font-semibold text-slate-700">資料尚未就緒</p>
+    <p class="text-sm text-slate-400 max-w-xs">
+      請先執行 ETL Pipeline 抓取資料後，再重新整理此頁面。
+    </p>
     <code class="mt-2 text-xs bg-slate-100 px-3 py-1.5 rounded-lg text-slate-600">
-      python sandbox/generate_mock.py
+      python -m etl.fetch_prices &amp;&amp; python -m etl.export_json
     </code>
   </div>
 
-  <!-- Main App -->
+  <!-- ── Main App ────────────────────────────────────────────────────────── -->
   <main id="app" class="hidden max-w-6xl mx-auto px-4 sm:px-6 py-8 space-y-10">
 
     <!-- Summary Cards -->
     <section>
-      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">最新行情</h2>
+      <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest mb-3">
+        最新行情
+      </h2>
       <div id="summary-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
+    </section>
+
+    <!-- User Reports Panel (hidden until data exists) -->
+    <section id="reports-section" class="hidden">
+      <div class="flex items-baseline gap-3 mb-3">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+          我的回填記錄
+        </h2>
+        <button id="clear-reports-btn"
+                class="text-xs text-rose-300 hover:text-rose-500 transition-colors">
+          清除全部
+        </button>
+      </div>
+      <div id="reports-content"></div>
     </section>
 
     <!-- Trend Chart -->
@@ -106,6 +153,7 @@
       <div class="px-6 pt-6 pb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
         <h2 class="text-sm font-semibold text-slate-700">價格走勢</h2>
         <div class="flex flex-wrap items-center gap-2">
+          <!-- Crop select -->
           <select
             id="crop-select"
             class="text-sm border border-slate-200 rounded-lg px-3 py-1.5 bg-white text-slate-700
@@ -115,6 +163,7 @@
             <option value="牛番茄">🍅 牛番茄</option>
             <option value="洋蔥">🧅 洋蔥</option>
           </select>
+          <!-- Days toggle -->
           <div class="flex rounded-lg border border-slate-200 overflow-hidden text-sm">
             <button class="days-btn active px-3 py-1.5 text-slate-500 border-r border-slate-200" data-days="30">30天</button>
             <button class="days-btn px-3 py-1.5 text-slate-500 border-r border-slate-200" data-days="60">60天</button>
@@ -148,14 +197,73 @@
 
   </main>
 
+  <!-- ── Retail Price Input Modal ──────────────────────────────────────── -->
+  <div id="retail-modal"
+       class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center
+              justify-center z-50 hidden">
+    <div class="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl">
+
+      <h3 id="modal-crop-title" class="font-semibold text-slate-800 text-base mb-1"></h3>
+      <p id="modal-wholesale-ref" class="text-xs text-slate-400 mb-5"></p>
+
+      <div class="space-y-4">
+        <!-- Retail price input -->
+        <div>
+          <label class="text-xs font-medium text-slate-500 mb-1.5 block">
+            你買到的零售價
+            <span class="text-slate-400 font-normal">（元 / 公斤）</span>
+          </label>
+          <input
+            id="modal-retail-input"
+            type="number" min="1" step="0.5"
+            placeholder="例：65"
+            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+        </div>
+
+        <!-- Market type -->
+        <div>
+          <label class="text-xs font-medium text-slate-500 mb-1.5 block">購買地點</label>
+          <div class="flex flex-wrap gap-2">
+            <button class="market-type-btn active text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="超市">超市</button>
+            <button class="market-type-btn text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="傳統市場">傳統市場</button>
+            <button class="market-type-btn text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="量販店">量販店</button>
+            <button class="market-type-btn text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="有機店">有機店</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button id="modal-cancel"
+                class="flex-1 text-sm text-slate-500 border border-slate-200
+                       rounded-xl py-2.5 hover:bg-slate-50 transition-colors">
+          取消
+        </button>
+        <button id="modal-submit"
+                class="flex-1 text-sm bg-emerald-500 hover:bg-emerald-600
+                       text-white rounded-xl py-2.5 font-medium transition-colors">
+          確認儲存
+        </button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Shared tooltip -->
   <div id="chart-tooltip"></div>
 
+  <!-- Footer -->
   <footer class="text-center text-xs text-slate-400 py-10">
-    資料來源：<span class="text-amber-500 font-medium">模擬資料（sandbox）</span>
-    ・重新整理不影響真實資料庫
+    資料來源：
+    <a
+      href="https://data.moa.gov.tw"
+      target="_blank"
+      rel="noopener noreferrer"
+      class="underline underline-offset-2 hover:text-slate-600 transition-colors"
+    >農業部開放資料平台</a>
+    ・每日 10:00 自動更新
   </footer>
 
-  <!-- 共用同一支 app.js，fetch 路徑相對於此頁面，自動指向 sandbox/data/ -->
   <script src="../app.js"></script>
 </body>
 </html>

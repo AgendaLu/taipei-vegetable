@@ -81,12 +81,13 @@ def safe_float(val) -> float | None:
 
 
 def write_records(conn: sqlite3.Connection, records: list[dict]) -> int:
-    """將 API 原始 records 寫入 DB，回傳實際寫入筆數。"""
+    """將 API v1 原始 records 寫入 DB，回傳實際寫入筆數。"""
     written = 0
     for r in records:
-        market_id = upsert_market(conn, r["市場名稱"])
-        crop_id   = upsert_crop(conn, r.get("作物代號", ""), r["作物名稱"])
-        y, m, d   = r["交易日期"].split(".")
+        market_id  = upsert_market(conn, r["MarketName"])
+        crop_id    = upsert_crop(conn, r.get("CropCode", ""), r["CropName"])
+        # TransDate 為民國年格式 "115.04.16"
+        y, m, d    = r["TransDate"].split(".")
         trade_date = f"{int(y) + 1911}-{int(m):02d}-{int(d):02d}"
 
         cur = conn.execute(
@@ -98,11 +99,11 @@ def write_records(conn: sqlite3.Connection, records: list[dict]) -> int:
             """,
             (
                 trade_date, market_id, crop_id,
-                safe_float(r.get("上價")),
-                safe_float(r.get("中價")),
-                safe_float(r.get("下價")),
-                safe_float(r.get("平均價")),
-                safe_float(r.get("交易量")),
+                safe_float(r.get("Upper_Price")),
+                safe_float(r.get("Middle_Price")),
+                safe_float(r.get("Lower_Price")),
+                safe_float(r.get("Avg_Price")),
+                safe_float(r.get("Trans_Quantity")),
             ),
         )
         written += cur.rowcount

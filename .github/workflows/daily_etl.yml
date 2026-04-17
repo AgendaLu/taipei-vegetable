@@ -8,9 +8,14 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   etl:
     runs-on: ubuntu-latest
+    env:
+      MOA_API_KEY: ${{ secrets.MOA_API_KEY }}
 
     steps:
       - name: Checkout repository

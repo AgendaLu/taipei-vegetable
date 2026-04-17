@@ -57,6 +57,28 @@
       outline: 2px solid #34d399;
       outline-offset: 2px;
     }
+
+    /* Market type pill buttons */
+    .market-type-btn {
+      transition: all 0.12s;
+    }
+    .market-type-btn.active {
+      background-color: #ecfdf5;
+      border-color: #34d399;
+      color: #059669;
+      font-weight: 600;
+    }
+
+    /* Modal slide-up on mobile */
+    @media (max-width: 640px) {
+      #retail-modal > div {
+        animation: slideUp 0.2s ease-out;
+      }
+      @keyframes slideUp {
+        from { transform: translateY(40px); opacity: 0; }
+        to   { transform: translateY(0);    opacity: 1; }
+      }
+    }
   </style>
 </head>
 
@@ -107,6 +129,20 @@
       <div id="summary-cards" class="grid grid-cols-1 sm:grid-cols-3 gap-4"></div>
     </section>
 
+    <!-- User Reports Panel (hidden until data exists) -->
+    <section id="reports-section" class="hidden">
+      <div class="flex items-baseline gap-3 mb-3">
+        <h2 class="text-xs font-semibold text-slate-400 uppercase tracking-widest">
+          我的回填記錄
+        </h2>
+        <button id="clear-reports-btn"
+                class="text-xs text-rose-300 hover:text-rose-500 transition-colors">
+          清除全部
+        </button>
+      </div>
+      <div id="reports-content"></div>
+    </section>
+
     <!-- Trend Chart -->
     <section class="bg-white rounded-2xl border border-slate-200 shadow-sm overflow-hidden">
       <div class="px-6 pt-6 pb-4 flex flex-wrap items-center justify-between gap-3 border-b border-slate-100">
@@ -155,6 +191,58 @@
     </section>
 
   </main>
+
+  <!-- ── Retail Price Input Modal ──────────────────────────────────────── -->
+  <div id="retail-modal"
+       class="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-end sm:items-center
+              justify-center z-50 hidden">
+    <div class="bg-white w-full sm:max-w-sm rounded-t-2xl sm:rounded-2xl p-6 shadow-2xl">
+
+      <h3 id="modal-crop-title" class="font-semibold text-slate-800 text-base mb-1"></h3>
+      <p id="modal-wholesale-ref" class="text-xs text-slate-400 mb-5"></p>
+
+      <div class="space-y-4">
+        <!-- Retail price input -->
+        <div>
+          <label class="text-xs font-medium text-slate-500 mb-1.5 block">
+            你買到的零售價
+            <span class="text-slate-400 font-normal">（元 / 公斤）</span>
+          </label>
+          <input
+            id="modal-retail-input"
+            type="number" min="1" step="0.5"
+            placeholder="例：65"
+            class="w-full border border-slate-200 rounded-xl px-3 py-2.5 text-sm
+                   focus:outline-none focus:ring-2 focus:ring-emerald-300"
+          />
+        </div>
+
+        <!-- Market type -->
+        <div>
+          <label class="text-xs font-medium text-slate-500 mb-1.5 block">購買地點</label>
+          <div class="flex flex-wrap gap-2">
+            <button class="market-type-btn active text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="超市">超市</button>
+            <button class="market-type-btn text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="傳統市場">傳統市場</button>
+            <button class="market-type-btn text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="量販店">量販店</button>
+            <button class="market-type-btn text-xs px-3 py-1.5 rounded-full border border-slate-200 bg-white" data-type="有機店">有機店</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="flex gap-3 mt-6">
+        <button id="modal-cancel"
+                class="flex-1 text-sm text-slate-500 border border-slate-200
+                       rounded-xl py-2.5 hover:bg-slate-50 transition-colors">
+          取消
+        </button>
+        <button id="modal-submit"
+                class="flex-1 text-sm bg-emerald-500 hover:bg-emerald-600
+                       text-white rounded-xl py-2.5 font-medium transition-colors">
+          確認儲存
+        </button>
+      </div>
+    </div>
+  </div>
 
   <!-- Shared tooltip -->
   <div id="chart-tooltip"></div>

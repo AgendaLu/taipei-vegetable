@@ -1,6 +1,6 @@
 """
 etl/backfill.py
-歷史資料補抓腳本
+歷史資料補抓腳本（API v1）
 
 用法：
     python -m etl.backfill                          # 預設補抓 2026-01-01 至昨日
@@ -8,38 +8,33 @@ etl/backfill.py
     python -m etl.backfill --start 2025-01-01 --end 2025-12-31
     python -m etl.backfill --dry-run                # 僅印出請求清單
 
-注意：
-    Crop / Market 參數為子字串比對。
-    - 花椰菜 → 花椰菜-青梗（即青花菜）
-    - 牛番茄 → 番茄-牛番茄
-    - 洋蔥   → 洋蔥-本產、洋蔥-進口
-    - 桃農   → 桃農（桃園農產，'桃園' 不匹配）
+環境變數：
+    MOA_API_KEY  農業部 Open API 金鑰
 """
-
 import argparse
+import os
 import time
-import urllib3
 from datetime import date, datetime, timedelta
-from pathlib import Path
 
 import requests
 
 from etl.db import DB_PATH, get_db, log_run, write_records
 
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
+API_BASE = "https://data.moa.gov.tw/api/v1/AgriProductsTransType/"
+API_KEY  = os.environ.get("MOA_API_KEY", "")
 
-API_URL   = "https://data.moa.gov.tw/Service/OpenData/FromM/FarmTransData.aspx"
-CROPS     = ["花椰菜", "牛番茄", "洋蔥"]
-MARKETS   = ["台北一", "台北二", "三重", "桃農"]
-PAGE_SIZE = 1000
-DELAY     = 0.5
+CROP_CODES = {
+    "青花菜": ["FB1"],
+    "牛番茄": ["FJ3"],
+    "洋蔥":   ["SD1", "SD9"],
+}
+
+TARGET_MARKETS = {"台北一", "台北二", "三重區", "桃農"}
+
+DELAY = 0.3
 
 
 # ── 工具函式 ──────────────────────────────────────────────────────────────────
-
-def to_roc(d: date) -> str:
-    return f"{d.year - 1911}.{d.month:02d}.{d.day:02d}"
-
 
 def iso(d: date) -> str:
     return d.strftime("%Y-%m-%d")
@@ -60,37 +55,41 @@ def month_range(start: date, end: date):
 
 # ── API 呼叫 ──────────────────────────────────────────────────────────────────
 
-def fetch_batch(start: date, end: date, market: str, crop: str) -> tuple[list[dict], str]:
+def fetch_batch(start: date, end: date, crop_code: str) -> tuple[list[dict], str]:
     all_records: list[dict] = []
-    skip = 0
+    page = 1
+
     while True:
         try:
             resp = requests.get(
-                API_URL,
+                API_BASE,
                 params={
-                    "$top":      PAGE_SIZE,
-                    "$skip":     skip,
-                    "StartDate": to_roc(start),
-                    "EndDate":   to_roc(end),
-                    "Market":    market,
-                    "Crop":      crop,
+                    "apikey":    API_KEY,
+                    "format":    "json",
+                    "CropCode":  crop_code,
+                    "StartDate": iso(start),
+                    "EndDate":   iso(end),
+                    "Page":      page,
                 },
                 timeout=30,
-                verify=False,
             )
             resp.raise_for_status()
-            batch = resp.json()
+            data = resp.json()
         except requests.RequestException as e:
             return all_records, f"error: {e}"
         except ValueError as e:
             return all_records, f"error: JSON parse failed: {e}"
 
-        if not batch:
-            break
+        if data.get("RS") != "OK":
+            return all_records, f"error: RS={data.get('RS')}"
+
+        batch = [r for r in (data.get("Data") or [])
+                 if r.get("MarketName") in TARGET_MARKETS]
         all_records.extend(batch)
-        if len(batch) < PAGE_SIZE:
+
+        if not data.get("Next"):
             break
-        skip += PAGE_SIZE
+        page += 1
         time.sleep(DELAY)
 
     return all_records, "empty" if not all_records else "ok"
@@ -100,43 +99,46 @@ def fetch_batch(start: date, end: date, market: str, crop: str) -> tuple[list[di
 
 def build_jobs(start: date, end: date) -> list[tuple]:
     return [
-        (ms, me, market, crop)
+        (ms, me, display, code)
         for ms, me in month_range(start, end)
-        for market in MARKETS
-        for crop   in CROPS
+        for display, codes in CROP_CODES.items()
+        for code in codes
     ]
 
 
 def run_backfill(start: date, end: date, dry_run: bool = False):
+    if not API_KEY and not dry_run:
+        print("✗ 未設定環境變數 MOA_API_KEY")
+        return 1
+
     jobs  = build_jobs(start, end)
     total = len(jobs)
 
     print(f"\n{'═'*60}")
-    print(f"  菜價歷史補抓")
+    print(f"  菜價歷史補抓（API v1）")
     print(f"  期間：{iso(start)} ～ {iso(end)}")
-    print(f"  品項：{', '.join(CROPS)}")
-    print(f"  市場：{', '.join(MARKETS)}")
+    print(f"  品項：{', '.join(CROP_CODES.keys())}")
     print(f"  請求數：{total} 次")
     if dry_run:
         print("  ⚠ DRY RUN — 不實際呼叫 API")
     print(f"{'═'*60}\n")
 
     if dry_run:
-        for i, (ms, me, market, crop) in enumerate(jobs, 1):
-            print(f"  [{i:3d}/{total}] {iso(ms)}～{iso(me)}  {market}  {crop}")
-        return
+        for i, (ms, me, display, code) in enumerate(jobs, 1):
+            print(f"  [{i:3d}/{total}] {iso(ms)}～{iso(me)}  {display} ({code})")
+        return 0
 
-    conn           = get_db(DB_PATH)
-    total_fetched  = 0
-    total_written  = 0
+    conn          = get_db(DB_PATH)
+    total_fetched = 0
+    total_written = 0
     errors: list[str] = []
 
     try:
-        for i, (ms, me, market, crop) in enumerate(jobs, 1):
-            label = f"[{i:3d}/{total}] {iso(ms)}～{iso(me)}  {market:<5}  {crop}"
+        for i, (ms, me, display, code) in enumerate(jobs, 1):
+            label = f"[{i:3d}/{total}] {iso(ms)}～{iso(me)}  {display} ({code})"
             print(f"  {label}", end="", flush=True)
 
-            records, status = fetch_batch(ms, me, market, crop)
+            records, status = fetch_batch(ms, me, code)
             fetched = len(records)
 
             if status.startswith("error"):
@@ -151,7 +153,7 @@ def run_backfill(start: date, end: date, dry_run: bool = False):
 
             log_run(conn, run_type="backfill",
                     date_start=iso(ms), date_end=iso(me),
-                    market=market, crop=crop,
+                    market="*", crop=f"{display}/{code}",
                     rows_fetched=fetched, rows_written=written,
                     status=status,
                     error_msg=status if status.startswith("error") else None)

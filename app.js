@@ -9,8 +9,7 @@ const MARKET_COLORS = {
 
 const CROP_EMOJI = { '青花菜': '🥦', '牛番茄': '🍅', '洋蔥': '🧅' };
 
-// 批發 → 零售估算倍數
-// 青花菜易損耗、運費高，加成最大；洋蔥耐放，加成最小
+// 批發 → 零售估算倍數（預設值，可被使用者回填校準）
 const RETAIL_MULTIPLIER = {
   '青花菜': 3.0,
   '牛番茄': 2.5,
@@ -26,6 +25,33 @@ const state = {
   digest: null,
   latest: null,
 };
+
+// 儲存各品項當前批發均價，供 modal 和刪除後重繪使用
+const cropWholesalePrices = {};
+
+// ─── Local Storage ────────────────────────────────────────────────────────────
+
+const STORAGE_KEY = 'taipei_veg_reports';
+
+function getReports() {
+  try { return JSON.parse(localStorage.getItem(STORAGE_KEY) || '[]'); }
+  catch { return []; }
+}
+
+function saveReport(report) {
+  const reports = getReports();
+  reports.unshift(report); // 最新的放最前
+  localStorage.setItem(STORAGE_KEY, JSON.stringify(reports));
+}
+
+function deleteReport(id) {
+  localStorage.setItem(STORAGE_KEY,
+    JSON.stringify(getReports().filter(r => r.id !== id)));
+}
+
+function clearAllReports() {
+  localStorage.removeItem(STORAGE_KEY);
+}
 
 // ─── Data Loading ─────────────────────────────────────────────────────────────
 
@@ -50,6 +76,9 @@ function renderSummaryCards(latest, history) {
     const validChanges = rows.filter(r => r.change_pct != null);
     const avgChange = validChanges.length ? d3.mean(validChanges, r => r.change_pct) : null;
 
+    // 儲存批發均價供後續使用
+    cropWholesalePrices[crop] = avgPrice;
+
     const priceStr  = avgPrice  != null ? `$${avgPrice.toFixed(1)}` : '—';
     const changeStr = avgChange != null
       ? `${avgChange >= 0 ? '+' : ''}${avgChange.toFixed(1)}%`
@@ -63,10 +92,6 @@ function renderSummaryCards(latest, history) {
         ? 'bg-rose-50 text-rose-500'
         : 'bg-slate-100 text-slate-500';
     const arrow = isUp ? '▲' : isDown ? '▼' : '●';
-
-    const multiplier  = RETAIL_MULTIPLIER[crop] || 2.5;
-    const retailPrice = avgPrice != null ? Math.round(avgPrice * multiplier) : null;
-    const retailStr   = retailPrice != null ? `約 $${retailPrice}` : '—';
 
     return `
       <div
@@ -84,19 +109,16 @@ function renderSummaryCards(latest, history) {
         <div class="text-sm text-slate-500 mt-0.5">
           ${crop} <span class="text-slate-400 text-xs">批發均價・元/公斤</span>
         </div>
-        <div class="mt-2 pt-2 border-t border-slate-100 flex items-center justify-between"
-             title="批發價 × ${multiplier} 倍估算，含通路、損耗、人力成本，僅供參考">
-          <span class="text-xs text-slate-400">估算零售</span>
-          <span class="text-sm font-semibold text-slate-600">
-            ${retailStr} <span class="text-xs font-normal text-slate-400">元/公斤</span>
-          </span>
-        </div>
+        <!-- 零售估算區塊（由 renderRetailSection 動態填入） -->
+        <div id="retail-sec-${CSS.escape(crop)}"
+             class="mt-2 pt-2 border-t border-slate-100"></div>
         <div id="sparkline-${CSS.escape(crop)}" class="mt-3" style="height:44px;"></div>
       </div>
     `;
   }).join('');
 
   crops.forEach(crop => renderSparkline(crop, history));
+  crops.forEach(crop => renderRetailSection(crop, cropWholesalePrices[crop]));
 
   document.querySelectorAll('.crop-card').forEach(card => {
     card.addEventListener('click', () => {
@@ -113,6 +135,273 @@ function renderSummaryCards(latest, history) {
 function updateCardSelection() {
   document.querySelectorAll('.crop-card').forEach(card => {
     card.classList.toggle('selected', card.dataset.crop === state.crop);
+  });
+}
+
+// ─── Retail Section ───────────────────────────────────────────────────────────
+
+function renderRetailSection(crop, wholesalePrice) {
+  const el = document.getElementById(`retail-sec-${CSS.escape(crop)}`);
+  if (!el) return;
+
+  const reports       = getReports().filter(r => r.crop === crop);
+  const defaultMult   = RETAIL_MULTIPLIER[crop] || 2.5;
+  const estDefault    = wholesalePrice != null ? Math.round(wholesalePrice * defaultMult) : null;
+  const editBtn = `
+    <button class="retail-edit-btn text-slate-300 hover:text-emerald-500 transition-colors
+                   ml-1 leading-none" data-crop="${crop}" title="回填你的實際買價"
+            style="font-size:13px;">✏</button>`;
+
+  let html = '';
+
+  if (reports.length === 0) {
+    // 尚無回填：顯示預設估算 + 回填按鈕
+    const valStr = estDefault != null ? `約 $${estDefault}` : '—';
+    html = `
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-slate-400">估算零售</span>
+        <div class="flex items-center">
+          <span class="text-sm font-semibold text-slate-600">${valStr}
+            <span class="text-xs font-normal text-slate-400">元/公斤</span>
+          </span>
+          ${editBtn}
+        </div>
+      </div>
+      <div class="text-right mt-0.5">
+        <span class="text-xs text-slate-300">點 ✏ 回填你的實際買價</span>
+      </div>
+    `;
+  } else {
+    // 有回填資料：顯示校準後倍數與估算
+    const validReports = reports.filter(r => r.multiplier != null);
+    const avgMult   = validReports.reduce((s, r) => s + r.multiplier, 0) / validReports.length;
+    const estCal    = wholesalePrice != null ? Math.round(wholesalePrice * avgMult) : null;
+    const diffPct   = (estCal != null && estDefault != null)
+      ? ((avgMult - defaultMult) / defaultMult * 100) : null;
+    const diffStr   = diffPct != null
+      ? `${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%` : '';
+    const diffColor = diffPct != null && diffPct > 0 ? 'text-rose-400' : 'text-emerald-500';
+    const calStr    = estCal != null ? `約 $${estCal}` : '—';
+
+    html = `
+      <div class="flex items-center justify-between mb-0.5">
+        <span class="text-xs text-slate-400">你的實測倍數</span>
+        <span class="text-xs font-semibold text-emerald-600">
+          ${avgMult.toFixed(2)}x
+          ${diffStr ? `<span class="font-normal ${diffColor} text-xs">（${diffStr}）</span>` : ''}
+        </span>
+      </div>
+      <div class="flex items-center justify-between">
+        <span class="text-xs text-slate-400">校準零售估算</span>
+        <div class="flex items-center">
+          <span class="text-sm font-semibold text-slate-600">${calStr}
+            <span class="text-xs font-normal text-slate-400">元/公斤</span>
+          </span>
+          ${editBtn}
+        </div>
+      </div>
+      <div class="text-right mt-0.5">
+        <span class="text-xs text-slate-400">${reports.length} 筆回填</span>
+      </div>
+    `;
+  }
+
+  el.innerHTML = html;
+
+  el.querySelectorAll('.retail-edit-btn').forEach(btn => {
+    btn.addEventListener('click', e => {
+      e.stopPropagation(); // 避免觸發卡片選取
+      openRetailModal(crop, wholesalePrice);
+    });
+  });
+}
+
+// ─── Retail Input Modal ───────────────────────────────────────────────────────
+
+const modalState = { crop: null, wholesale: null, marketType: '超市' };
+
+function openRetailModal(crop, wholesalePrice) {
+  modalState.crop      = crop;
+  modalState.wholesale = wholesalePrice;
+  modalState.marketType = '超市';
+
+  document.getElementById('modal-crop-title').textContent =
+    `${CROP_EMOJI[crop] || ''} ${crop}・回填零售價`;
+  document.getElementById('modal-wholesale-ref').textContent =
+    wholesalePrice != null
+      ? `今日批發均價 $${wholesalePrice.toFixed(1)} 元/公斤（資料日期 ${state.latest?.trade_date ?? ''}）`
+      : '';
+  document.getElementById('modal-retail-input').value = '';
+
+  // Reset market type buttons
+  document.querySelectorAll('.market-type-btn').forEach(btn => {
+    btn.classList.toggle('active', btn.dataset.type === '超市');
+  });
+
+  document.getElementById('retail-modal').classList.remove('hidden');
+  setTimeout(() => document.getElementById('modal-retail-input').focus(), 80);
+}
+
+function closeRetailModal() {
+  document.getElementById('retail-modal').classList.add('hidden');
+}
+
+function submitRetailReport() {
+  const raw = document.getElementById('modal-retail-input').value.trim();
+  const price = parseFloat(raw);
+
+  if (!raw || isNaN(price) || price <= 0) {
+    document.getElementById('modal-retail-input').focus();
+    document.getElementById('modal-retail-input').classList.add('ring-2', 'ring-rose-300');
+    setTimeout(() =>
+      document.getElementById('modal-retail-input').classList.remove('ring-2', 'ring-rose-300'), 1000);
+    return;
+  }
+
+  const today = new Date().toISOString().split('T')[0];
+  saveReport({
+    id:           Date.now(),
+    crop:         modalState.crop,
+    date:         today,
+    wholesale_mid: modalState.wholesale,
+    retail_price: price,
+    multiplier:   modalState.wholesale ? parseFloat((price / modalState.wholesale).toFixed(4)) : null,
+    market_type:  modalState.marketType,
+  });
+
+  closeRetailModal();
+  renderRetailSection(modalState.crop, modalState.wholesale);
+  renderReportsPanel();
+}
+
+function setupModalHandlers() {
+  document.getElementById('modal-cancel')
+    .addEventListener('click', closeRetailModal);
+
+  // 點遮罩關閉
+  document.getElementById('retail-modal')
+    .addEventListener('click', e => {
+      if (e.target === document.getElementById('retail-modal')) closeRetailModal();
+    });
+
+  document.getElementById('modal-submit')
+    .addEventListener('click', submitRetailReport);
+
+  document.getElementById('modal-retail-input')
+    .addEventListener('keydown', e => { if (e.key === 'Enter') submitRetailReport(); });
+
+  // Market type pills
+  document.querySelectorAll('.market-type-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      modalState.marketType = btn.dataset.type;
+      document.querySelectorAll('.market-type-btn').forEach(b =>
+        b.classList.toggle('active', b === btn));
+    });
+  });
+
+  // Clear all button
+  document.getElementById('clear-reports-btn')
+    .addEventListener('click', () => {
+      if (!confirm('確定要清除全部回填記錄嗎？')) return;
+      clearAllReports();
+      refreshAllRetailSections();
+      renderReportsPanel();
+    });
+}
+
+// 重繪所有卡片的零售區塊（刪除/清除後呼叫）
+function refreshAllRetailSections() {
+  Object.entries(cropWholesalePrices).forEach(([crop, price]) => {
+    renderRetailSection(crop, price);
+  });
+}
+
+// ─── Reports Panel ────────────────────────────────────────────────────────────
+
+function renderReportsPanel() {
+  const reports = getReports();
+  const section = document.getElementById('reports-section');
+  const content = document.getElementById('reports-content');
+
+  if (reports.length === 0) {
+    section.classList.add('hidden');
+    return;
+  }
+  section.classList.remove('hidden');
+
+  // 依品項分組
+  const byCrop = {};
+  reports.forEach(r => {
+    if (!byCrop[r.crop]) byCrop[r.crop] = [];
+    byCrop[r.crop].push(r);
+  });
+
+  content.innerHTML = Object.entries(byCrop).map(([crop, cropReports]) => {
+    const validR      = cropReports.filter(r => r.multiplier != null);
+    const avgMult     = validR.reduce((s, r) => s + r.multiplier, 0) / (validR.length || 1);
+    const defaultMult = RETAIL_MULTIPLIER[crop] || 2.5;
+    const diffPct     = ((avgMult - defaultMult) / defaultMult * 100);
+    const diffStr     = `${diffPct >= 0 ? '+' : ''}${diffPct.toFixed(1)}%`;
+    const diffColor   = diffPct > 0 ? 'text-rose-400' : 'text-emerald-500';
+
+    const rows = cropReports.map(r => `
+      <tr class="border-t border-slate-100 hover:bg-slate-50">
+        <td class="py-2 pl-1 text-xs text-slate-500 whitespace-nowrap">${r.date}</td>
+        <td class="py-2 text-xs text-slate-500 text-right">
+          ${r.wholesale_mid != null ? `$${Number(r.wholesale_mid).toFixed(1)}` : '—'}
+        </td>
+        <td class="py-2 text-sm font-semibold text-slate-700 text-right">$${r.retail_price}</td>
+        <td class="py-2 text-xs font-medium text-emerald-600 text-right">
+          ${r.multiplier != null ? `${r.multiplier.toFixed(2)}x` : '—'}
+        </td>
+        <td class="py-2 text-xs text-slate-400 text-center">${r.market_type}</td>
+        <td class="py-2 pr-1 text-center">
+          <button class="delete-report-btn text-slate-300 hover:text-rose-400
+                         transition-colors text-xs px-1"
+                  data-id="${r.id}" title="刪除此筆">✕</button>
+        </td>
+      </tr>
+    `).join('');
+
+    return `
+      <div class="bg-white rounded-2xl border border-slate-200 shadow-sm p-5 mb-4">
+        <div class="flex items-center justify-between mb-3 flex-wrap gap-2">
+          <span class="font-semibold text-slate-800">
+            ${CROP_EMOJI[crop] || '🌿'} ${crop}
+          </span>
+          <span class="text-xs text-slate-400">
+            ${cropReports.length} 筆回填・你的倍數
+            <span class="font-semibold text-emerald-600">${avgMult.toFixed(2)}x</span>
+            vs 預設 ${defaultMult}x
+            <span class="${diffColor} font-medium">（${diffStr}）</span>
+          </span>
+        </div>
+        <div class="overflow-x-auto">
+          <table class="w-full min-w-[360px]">
+            <thead>
+              <tr>
+                <th class="text-left text-xs text-slate-400 font-medium pb-2 pl-1">日期</th>
+                <th class="text-right text-xs text-slate-400 font-medium pb-2">批發均價</th>
+                <th class="text-right text-xs text-slate-400 font-medium pb-2">實測零售</th>
+                <th class="text-right text-xs text-slate-400 font-medium pb-2">倍數</th>
+                <th class="text-center text-xs text-slate-400 font-medium pb-2">地點</th>
+                <th></th>
+              </tr>
+            </thead>
+            <tbody>${rows}</tbody>
+          </table>
+        </div>
+      </div>
+    `;
+  }).join('');
+
+  // 刪除單筆
+  content.querySelectorAll('.delete-report-btn').forEach(btn => {
+    btn.addEventListener('click', () => {
+      deleteReport(Number(btn.dataset.id));
+      refreshAllRetailSections();
+      renderReportsPanel();
+    });
   });
 }
 
@@ -566,8 +855,10 @@ async function init() {
 
     renderSummaryCards(latest, history);
     setupEventHandlers();
+    setupModalHandlers();
     renderTrendChart();
     renderWeeklyDigest(digest);
+    renderReportsPanel();
 
   } catch (err) {
     loadingEl.classList.add('hidden');

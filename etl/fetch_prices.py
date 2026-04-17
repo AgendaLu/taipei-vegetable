@@ -1,76 +1,75 @@
 """
 etl/fetch_prices.py
-每日抓取農業部農產品交易行情
+每日抓取農業部農產品交易行情（API v1）
 
 用法：
     python -m etl.fetch_prices                   # 抓今日
     python -m etl.fetch_prices --date 2026-04-09 # 指定日期
+
+環境變數：
+    MOA_API_KEY  農業部 Open API 金鑰
 """
 import argparse
+import os
 import time
-import warnings
-from datetime import date, datetime, timedelta
+from datetime import date, datetime
 
 import requests
-import urllib3
-
-# 農業部 data.moa.gov.tw 的 SSL 憑證缺少 Subject Key Identifier，
-# 不符合 RFC 5280，Python 3.13+ 會拒絕。略過驗證並壓住警告。
-urllib3.disable_warnings(urllib3.exceptions.InsecureRequestWarning)
-SSL_VERIFY = False
 
 from etl.db import DB_PATH, get_db, log_run, write_records
 
-API_URL   = "https://data.moa.gov.tw/Service/OpenData/FromM/FarmTransData.aspx"
-# API Crop 參數為子字串比對，以下為能正確命中的最短字串：
-#   花椰菜 → 花椰菜-青梗（即青花菜）
-#   牛番茄 → 番茄-牛番茄
-#   洋蔥   → 洋蔥-本產、洋蔥-進口
-# Market 參數同樣子字串比對；「桃園」不匹配，須用「桃農」
-CROPS     = ["花椰菜", "牛番茄", "洋蔥"]
-MARKETS   = ["台北一", "台北二", "三重", "桃農"]
-PAGE_SIZE = 1000
-DELAY     = 0.5  # 每次請求間隔秒數
+API_BASE = "https://data.moa.gov.tw/api/v1/AgriProductsTransType/"
+API_KEY  = os.environ.get("MOA_API_KEY", "")
+
+# 目標品項：顯示名稱 → [作物代號, ...]
+CROP_CODES = {
+    "青花菜": ["FB1"],
+    "牛番茄": ["FJ3"],
+    "洋蔥":   ["SD1", "SD9"],
+}
+
+# 僅保留以下市場（MarketName 完全比對）
+TARGET_MARKETS = {"台北一", "台北二", "三重區", "桃農"}
+
+DELAY = 0.3
 
 
-def to_roc(d: date) -> str:
-    return f"{d.year - 1911}.{d.month:02d}.{d.day:02d}"
-
-
-def fetch_one(target: date, market: str, crop: str) -> tuple[list[dict], str]:
-    roc = to_roc(target)
+def fetch_crop_range(start: date, end: date, crop_code: str) -> tuple[list[dict], str]:
+    """抓取單一作物代號、日期區間資料，回傳 (records, status)。"""
     all_records: list[dict] = []
-    skip = 0
+    page = 1
 
     while True:
         try:
             resp = requests.get(
-                API_URL,
+                API_BASE,
                 params={
-                    "$top": PAGE_SIZE,
-                    "$skip": skip,
-                    "StartDate": roc,
-                    "EndDate": roc,
-                    "Market": market,
-                    "Crop": crop,
+                    "apikey":    API_KEY,
+                    "format":    "json",
+                    "CropCode":  crop_code,
+                    "StartDate": start.strftime("%Y-%m-%d"),
+                    "EndDate":   end.strftime("%Y-%m-%d"),
+                    "Page":      page,
                 },
                 timeout=30,
-                verify=SSL_VERIFY,
             )
             resp.raise_for_status()
-            batch = resp.json()
+            data = resp.json()
         except requests.RequestException as e:
             return all_records, f"error: {e}"
         except ValueError as e:
             return all_records, f"error: JSON parse failed: {e}"
 
-        if not batch:
-            break
+        if data.get("RS") != "OK":
+            return all_records, f"error: RS={data.get('RS')}"
 
+        batch = [r for r in (data.get("Data") or [])
+                 if r.get("MarketName") in TARGET_MARKETS]
         all_records.extend(batch)
-        if len(batch) < PAGE_SIZE:
+
+        if not data.get("Next"):
             break
-        skip += PAGE_SIZE
+        page += 1
         time.sleep(DELAY)
 
     return all_records, "empty" if not all_records else "ok"
@@ -78,45 +77,42 @@ def fetch_one(target: date, market: str, crop: str) -> tuple[list[dict], str]:
 
 def run_daily(target: date) -> int:
     """回傳錯誤數量（0 = 全部成功）"""
+    if not API_KEY:
+        print("✗ 未設定環境變數 MOA_API_KEY")
+        return 1
+
     iso = target.strftime("%Y-%m-%d")
     print(f"\n▶ 抓取 {iso} 資料")
-    print(f"  品項：{', '.join(CROPS)}")
-    print(f"  市場：{', '.join(MARKETS)}\n")
+    print(f"  品項：{', '.join(CROP_CODES.keys())}\n")
 
     conn = get_db(DB_PATH)
     total_written = 0
     errors: list[str] = []
 
     try:
-        for market in MARKETS:
-            for crop in CROPS:
-                records, status = fetch_one(target, market, crop)
+        for display_name, codes in CROP_CODES.items():
+            for code in codes:
+                records, status = fetch_crop_range(target, target, code)
                 fetched = len(records)
 
                 if status.startswith("error"):
                     written = 0
-                    errors.append(f"{market} / {crop}: {status}")
+                    errors.append(f"{display_name} ({code}): {status}")
                 else:
                     written = write_records(conn, records)
                     conn.commit()
 
-                log_run(
-                    conn,
-                    run_type="daily",
-                    date_start=iso,
-                    date_end=iso,
-                    market=market,
-                    crop=crop,
-                    rows_fetched=fetched,
-                    rows_written=written,
-                    status=status,
-                    error_msg=status if status.startswith("error") else None,
-                )
+                log_run(conn, run_type="daily",
+                        date_start=iso, date_end=iso,
+                        market="*", crop=f"{display_name}/{code}",
+                        rows_fetched=fetched, rows_written=written,
+                        status=status,
+                        error_msg=status if status.startswith("error") else None)
                 conn.commit()
                 total_written += written
 
                 marker = "✓" if status == "ok" else ("–" if status == "empty" else "✗")
-                print(f"  {marker} {market} × {crop}：{fetched} 筆取得 / {written} 筆寫入")
+                print(f"  {marker} {display_name} ({code})：{fetched} 筆取得 / {written} 筆寫入")
                 time.sleep(DELAY)
 
     finally:
