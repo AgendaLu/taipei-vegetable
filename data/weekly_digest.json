@@ -9,24 +9,5 @@
     "start": "2026-03-30",
     "end": "2026-04-05"
   },
-  "items": [
-    {
-      "crop": "青花菜",
-      "this_avg": 21.6,
-      "prev_avg": 13.3,
-      "change_pct": 62.4
-    },
-    {
-      "crop": "牛番茄",
-      "this_avg": 22.9,
-      "prev_avg": 17.0,
-      "change_pct": 34.7
-    },
-    {
-      "crop": "洋蔥",
-      "this_avg": 18.1,
-      "prev_avg": 18.8,
-      "change_pct": -3.7
-    }
-  ]
+  "items": []
 }
