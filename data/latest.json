@@ -47,16 +47,7 @@
       "upper_price": 29.6,
       "lower_price": 17.9,
       "volume_kg": 18486.0,
-      "change_pct": null
-    },
-    {
-      "crop": "洋蔥",
-      "market": "桃農",
-      "mid_price": 13.3,
-      "upper_price": 15.0,
-      "lower_price": 10.3,
-      "volume_kg": 3660.0,
-      "change_pct": 19.3
+      "change_pct": 0.5
     },
     {
       "crop": "牛番茄",
@@ -92,16 +83,7 @@
       "upper_price": 67.6,
       "lower_price": 15.8,
       "volume_kg": 2817.0,
-      "change_pct": null
-    },
-    {
-      "crop": "牛番茄",
-      "market": "桃農",
-      "mid_price": 38.2,
-      "upper_price": 67.7,
-      "lower_price": 10.0,
-      "volume_kg": 5132.0,
-      "change_pct": 16.1
+      "change_pct": 32.9
     },
     {
       "crop": "青花菜",
@@ -137,16 +119,7 @@
       "upper_price": 23.2,
       "lower_price": 11.9,
       "volume_kg": 7348.0,
-      "change_pct": null
-    },
-    {
-      "crop": "青花菜",
-      "market": "桃農",
-      "mid_price": 17.0,
-      "upper_price": 25.2,
-      "lower_price": 11.1,
-      "volume_kg": 7035.0,
-      "change_pct": 1.2
+      "change_pct": -2.3
     }
   ]
 }

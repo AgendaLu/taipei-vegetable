@@ -1,5 +1,8 @@
 # 資料庫（本地執行，不上傳）
 agri_prices.db
+agri_prices.db-shm
+agri_prices.db-wal
+agri_prices.db-journal
 
 # 本地研究與分析（不公開）
 local/
