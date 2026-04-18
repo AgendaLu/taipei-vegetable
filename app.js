@@ -25,7 +25,13 @@ const state = {
   digest: null,
   latest: null,
   yoy: null,
+  cropsIndex: null,  // { items: [{crop, aliases, names, codes, category, tracked}, ...] }
 };
+
+// Fuse.js 搜尋實例（init 時建立）
+let searchFuse = null;
+// 目前 dropdown 高亮的索引
+let searchActiveIdx = -1;
 
 // 儲存各品項當前批發均價，供 modal 和刪除後重繪使用
 const cropWholesalePrices = {};
@@ -59,13 +65,14 @@ function clearAllReports() {
 async function loadData() {
   const v = Date.now();
   const get = url => fetch(`${url}?v=${v}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
-  const [history, digest, latest, yoy] = await Promise.all([
+  const [history, digest, latest, yoy, cropsIndex] = await Promise.all([
     get('data/history.json'),
     get('data/weekly_digest.json'),
     get('data/latest.json'),
     get('data/yoy.json'),
+    get('data/crops_index.json'),
   ]);
-  return { history, digest, latest, yoy };
+  return { history, digest, latest, yoy, cropsIndex };
 }
 
 // ─── Summary Cards ────────────────────────────────────────────────────────────
@@ -1210,6 +1217,315 @@ function setupHistoryModal() {
   });
 }
 
+// ─── Search (Fuse.js autocomplete) ────────────────────────────────────────────
+
+/**
+ * 建立 Fuse 索引。權重：主名稱 > 別稱 > 官方全名 > 代號。
+ * threshold ~ 0.35 對中文是較自然的模糊程度（0 = 精確，1 = 極寬鬆）。
+ */
+function buildFuse(items) {
+  return new Fuse(items, {
+    keys: [
+      { name: 'crop',    weight: 0.5  },
+      { name: 'aliases', weight: 0.3  },
+      { name: 'names',   weight: 0.15 },
+      { name: 'codes',   weight: 0.05 },
+    ],
+    threshold: 0.35,
+    ignoreLocation: true,
+    minMatchCharLength: 1,
+    includeScore:   true,
+    includeMatches: true,
+  });
+}
+
+function setupSearch() {
+  const items = state.cropsIndex?.items || [];
+  if (!items.length) return;
+
+  searchFuse = buildFuse(items);
+
+  const input    = document.getElementById('search-input');
+  const dropdown = document.getElementById('search-dropdown');
+  const clearBtn = document.getElementById('search-clear');
+
+  const runSearch = () => {
+    const q = input.value.trim();
+    searchActiveIdx = -1;
+
+    // 清除按鈕顯示
+    clearBtn.classList.toggle('hidden', q.length === 0);
+
+    if (!q) { hideSearchDropdown(); return; }
+
+    const results = searchFuse.search(q, { limit: 12 });
+    renderSearchDropdown(results, q);
+  };
+
+  input.addEventListener('input', runSearch);
+  input.addEventListener('focus', () => { if (input.value.trim()) runSearch(); });
+
+  // 鍵盤導航
+  input.addEventListener('keydown', e => {
+    const items = dropdown.querySelectorAll('.search-item');
+    if (e.key === 'ArrowDown') {
+      e.preventDefault();
+      if (!items.length) return;
+      searchActiveIdx = Math.min(searchActiveIdx + 1, items.length - 1);
+      updateSearchActive();
+    } else if (e.key === 'ArrowUp') {
+      e.preventDefault();
+      if (!items.length) return;
+      searchActiveIdx = Math.max(searchActiveIdx - 1, 0);
+      updateSearchActive();
+    } else if (e.key === 'Enter') {
+      e.preventDefault();
+      if (searchActiveIdx >= 0 && items[searchActiveIdx]) {
+        items[searchActiveIdx].click();
+      } else {
+        // 無高亮：直接選第一筆；若完全無結果，走 not-found fallback
+        const q = input.value.trim();
+        if (!q) return;
+        const res = searchFuse.search(q, { limit: 1 });
+        if (res.length) {
+          selectCrop(res[0].item, q);
+        } else {
+          // Fuse threshold 較嚴，再用最寬鬆設定找最接近一筆
+          const loose = new Fuse(state.cropsIndex.items, {
+            keys: ['crop', 'aliases', 'names'],
+            threshold: 1.0, ignoreLocation: true, includeScore: true,
+          }).search(q, { limit: 1 });
+          if (loose.length) openNotFoundDialog(q, loose[0].item);
+          else openNotFoundDialog(q, null);
+        }
+      }
+    } else if (e.key === 'Escape') {
+      input.blur();
+      hideSearchDropdown();
+    }
+  });
+
+  // 清除
+  clearBtn.addEventListener('click', () => {
+    input.value = '';
+    clearBtn.classList.add('hidden');
+    hideSearchDropdown();
+    input.focus();
+  });
+
+  // 點擊外部關閉下拉
+  document.addEventListener('click', e => {
+    if (!e.target.closest('#search-wrap')) hideSearchDropdown();
+  });
+
+  // Not-found dialog handlers
+  document.getElementById('nf-close').addEventListener('click', closeNotFoundDialog);
+  document.getElementById('notfound-modal').addEventListener('click', e => {
+    if (e.target === document.getElementById('notfound-modal')) closeNotFoundDialog();
+  });
+}
+
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, c => ({
+    '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;',
+  }[c]));
+}
+
+/**
+ * 在 label 內把 Fuse 的 indices 高亮成 <mark>。
+ * indices: [[start, end], ...]（inclusive）
+ */
+function highlight(label, indices) {
+  if (!indices || !indices.length) return escapeHtml(label);
+  let out = '';
+  let cursor = 0;
+  indices.forEach(([s, e]) => {
+    if (s > cursor) out += escapeHtml(label.slice(cursor, s));
+    out += '<mark>' + escapeHtml(label.slice(s, e + 1)) + '</mark>';
+    cursor = e + 1;
+  });
+  if (cursor < label.length) out += escapeHtml(label.slice(cursor));
+  return out;
+}
+
+function renderSearchDropdown(results, query) {
+  const dropdown = document.getElementById('search-dropdown');
+
+  if (!results.length) {
+    dropdown.innerHTML = `
+      <div class="search-empty">
+        查無「${escapeHtml(query)}」<br>
+        <span class="text-xs text-slate-400">按 Enter 看最接近的建議</span>
+      </div>`;
+    dropdown.classList.remove('hidden');
+    return;
+  }
+
+  dropdown.innerHTML = results.map((r, i) => {
+    const it = r.item;
+    // 找出命中欄位並做高亮（優先 crop > aliases > names）
+    const cropMatch   = r.matches?.find(m => m.key === 'crop');
+    const aliasMatch  = r.matches?.find(m => m.key === 'aliases');
+    const nameMatch   = r.matches?.find(m => m.key === 'names');
+
+    const titleHtml = cropMatch
+      ? highlight(it.crop, cropMatch.indices)
+      : escapeHtml(it.crop);
+
+    let subBits = [it.category];
+    if (aliasMatch) {
+      const alias = it.aliases[aliasMatch.refIndex] || '';
+      subBits.push('別稱：' + highlight(alias, aliasMatch.indices));
+    } else if (nameMatch) {
+      const name = it.names[nameMatch.refIndex] || '';
+      subBits.push(highlight(name, nameMatch.indices));
+    } else if (it.aliases.length) {
+      subBits.push('別稱：' + escapeHtml(it.aliases.slice(0, 2).join('、')));
+    }
+
+    const badge = it.tracked
+      ? '<span class="si-badge">有行情</span>'
+      : '<span class="si-badge muted">未追蹤</span>';
+
+    return `
+      <div class="search-item ${i === 0 ? 'active' : ''}"
+           data-crop="${escapeHtml(it.crop)}"
+           data-idx="${i}"
+           role="option">
+        <div class="flex-1 min-w-0">
+          <div class="si-title">${titleHtml}</div>
+          <div class="si-sub">${subBits.join('　')}</div>
+        </div>
+        ${badge}
+      </div>`;
+  }).join('');
+
+  searchActiveIdx = 0;
+
+  dropdown.querySelectorAll('.search-item').forEach(el => {
+    el.addEventListener('click', () => {
+      const cropName = el.dataset.crop;
+      const item = state.cropsIndex.items.find(x => x.crop === cropName);
+      if (item) selectCrop(item, query);
+    });
+    el.addEventListener('mouseenter', () => {
+      searchActiveIdx = Number(el.dataset.idx);
+      updateSearchActive();
+    });
+  });
+
+  dropdown.classList.remove('hidden');
+}
+
+function updateSearchActive() {
+  const items = document.querySelectorAll('#search-dropdown .search-item');
+  items.forEach((el, i) => el.classList.toggle('active', i === searchActiveIdx));
+  const active = items[searchActiveIdx];
+  if (active) active.scrollIntoView({ block: 'nearest' });
+}
+
+function hideSearchDropdown() {
+  document.getElementById('search-dropdown').classList.add('hidden');
+  searchActiveIdx = -1;
+}
+
+/**
+ * 選擇一個品項：
+ * - tracked（有資料）：切換 state.crop + 重繪走勢圖 + 標示卡片
+ * - 未追蹤：跳出未追蹤提示，引導之後再加入
+ */
+function selectCrop(item, query) {
+  const input    = document.getElementById('search-input');
+  const clearBtn = document.getElementById('search-clear');
+
+  hideSearchDropdown();
+  input.value = '';
+  clearBtn.classList.add('hidden');
+  input.blur();
+
+  if (item.tracked) {
+    state.crop = item.crop;
+    // 同步 <select> 的值（若存在該 option）
+    const sel = document.getElementById('crop-select');
+    if (sel && Array.from(sel.options).some(o => o.value === item.crop)) {
+      sel.value = item.crop;
+    }
+    updateCardSelection();
+    renderTrendChart();
+    // 滑到走勢圖區
+    document.getElementById('trend-chart')?.scrollIntoView({ behavior: 'smooth', block: 'start' });
+  } else {
+    openNotFoundDialog(query || item.crop, item, { reason: 'untracked' });
+  }
+}
+
+// ─── Not-Found Dialog ────────────────────────────────────────────────────────
+
+function openNotFoundDialog(query, suggestion, opts = {}) {
+  const modal = document.getElementById('notfound-modal');
+  const titleEl   = document.getElementById('nf-query');
+  const titleWrap = titleEl.parentElement;      // <h3>
+  const hintEl    = titleWrap.nextElementSibling; // <p>
+
+  const nameEl   = document.getElementById('nf-suggestion-name');
+  const subEl    = document.getElementById('nf-suggestion-sub');
+  const badgeEl  = document.getElementById('nf-suggestion-badge');
+  const btn      = document.getElementById('nf-suggestion');
+  const closeBtn = document.getElementById('nf-close');
+
+  const isUntracked = opts.reason === 'untracked';
+
+  // 標題文案依情境切換
+  if (isUntracked) {
+    titleWrap.innerHTML = `「<span class="text-amber-500">${escapeHtml(suggestion.crop)}</span>」目前尚未追蹤`;
+    hintEl.textContent  = '這個品項在字典裡，但我們還沒收錄每日批發行情。';
+  } else {
+    titleWrap.innerHTML = `查無 <span class="text-rose-500">「${escapeHtml(query)}」</span>`;
+    hintEl.textContent  = suggestion ? '我們找到最相近的品項：' : '找不到相關品項';
+  }
+
+  if (!suggestion) {
+    nameEl.textContent = '（沒有找到相似品項）';
+    subEl.textContent  = '試試其他關鍵字，例如「花椰」、「番茄」、「洋蔥」';
+    badgeEl.textContent = '';
+    btn.disabled = true;
+    btn.classList.add('opacity-50', 'pointer-events-none');
+    closeBtn.textContent = '關閉';
+  } else {
+    btn.disabled = false;
+    btn.classList.remove('opacity-50', 'pointer-events-none');
+    nameEl.textContent = suggestion.crop;
+    const aliasStr = suggestion.aliases?.length
+      ? `別稱：${suggestion.aliases.slice(0, 3).join('、')}　` : '';
+    subEl.textContent = `${aliasStr}${suggestion.category}`;
+
+    if (isUntracked || !suggestion.tracked) {
+      badgeEl.textContent = '目前無行情';
+      badgeEl.className = 'si-badge muted';
+      btn.onclick = () => {
+        // 未追蹤：引導使用者到「新增品項追蹤流程」的說明
+        subEl.innerHTML = '若想追蹤此品項，請編輯 <code class="bg-slate-100 px-1 rounded text-xs">etl/crops.yaml</code> 加上 <code class="bg-slate-100 px-1 rounded text-xs">tracked: true</code> 後執行 backfill。';
+        badgeEl.textContent = '';
+      };
+      closeBtn.textContent = '了解，關閉';
+    } else {
+      badgeEl.textContent = '是這個 →';
+      badgeEl.className = 'text-xs font-semibold text-emerald-600';
+      btn.onclick = () => {
+        closeNotFoundDialog();
+        selectCrop(suggestion, query);
+      };
+      closeBtn.textContent = '都不是，重新搜尋';
+    }
+  }
+
+  modal.classList.remove('hidden');
+}
+
+function closeNotFoundDialog() {
+  document.getElementById('notfound-modal').classList.add('hidden');
+}
+
 // ─── Event Handlers ───────────────────────────────────────────────────────────
 
 function setupEventHandlers() {
@@ -1237,11 +1553,12 @@ async function init() {
   const emptyEl     = document.getElementById('empty-state');
 
   try {
-    const { history, digest, latest, yoy } = await loadData();
-    state.history = history;
-    state.digest  = digest;
-    state.latest  = latest;
-    state.yoy     = yoy;
+    const { history, digest, latest, yoy, cropsIndex } = await loadData();
+    state.history    = history;
+    state.digest     = digest;
+    state.latest     = latest;
+    state.yoy        = yoy;
+    state.cropsIndex = cropsIndex;
 
     if (!latest.trade_date) throw new Error('no-data');
 
@@ -1255,6 +1572,7 @@ async function init() {
     setupEventHandlers();
     setupModalHandlers();
     setupHistoryModal();
+    setupSearch();
     renderTrendChart();
     renderWeeklyDigest(digest);
     renderReportsPanel();

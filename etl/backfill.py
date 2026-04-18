@@ -18,16 +18,14 @@ from datetime import date, datetime, timedelta
 
 import requests
 
+from etl.catalog import tracked_crop_codes
 from etl.db import DB_PATH, get_db, log_run, write_records
 
 API_BASE = "https://data.moa.gov.tw/api/v1/AgriProductsTransType/"
 API_KEY  = os.environ.get("MOA_API_KEY", "")
 
-CROP_CODES = {
-    "青花菜": ["FB1"],
-    "牛番茄": ["FJ3"],
-    "洋蔥":   ["SD1", "SD9"],
-}
+# 單一事實來源：etl/crops.yaml 中 tracked: true 的品項
+CROP_CODES = tracked_crop_codes()
 
 TARGET_MARKETS = {"台北一", "台北二", "三重區", "板橋區"}
 

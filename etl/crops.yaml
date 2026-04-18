@@ -1,30 +1,58 @@
-# 農產品批發市場品名代碼對照表
+# 農產品批發市場品名代碼對照表（單一事實來源 / Single Source of Truth）
 #
 # 資料來源：https://amis.afa.gov.tw/main/ProductChanged.aspx
-# 更新日期：2026-04-14
-# 說明：本表收錄 AMIS「代號新增/變動」品項，非完整清單。
-#       農業部 API (data.moa.gov.tw) 查詢以 crop 欄位的名稱為 Crop 參數。
+# 更新日期：2026-04-18
+#
+# 用途：
+#   1. 前端搜尋字典（data/crops_index.json 由此匯出）
+#   2. fetch_prices / backfill 的抓取清單（只抓 tracked: true 的品項）
+#   3. export_json 的品項顯示對照（db_pattern 用於 SQL LIKE）
 #
 # 四層階層結構：
 #   大類 → 分類 → 品項 (crop) → 代號細項 (codes)
 #
 # 欄位說明：
-#   crop     - 品項主要名稱（同農業部 API 的作物名稱）
-#   aliases  - 常見別稱（供使用者查詢時的模糊比對）
-#   codes    - AMIS 代號清單
-#     code   - AMIS 代號（字串，保留前導零）
-#     name   - AMIS 官方全名
-#     imported - 是否為進口品
+#   crop        - 品項主要名稱（顯示給使用者）
+#   aliases     - 常見別稱（供使用者查詢時的模糊比對）
+#   tracked     - [可選] true 表示此品項納入日抓/匯出的生產資料流
+#   db_pattern  - [tracked 必填] SQLite LIKE 比對用的字串（對應 DB 裡的 crops.name）
+#   codes       - AMIS 代號清單
+#     code      - AMIS 代號（字串，保留前導零）
+#     name      - AMIS 官方全名
+#     imported  - 是否為進口品
+#
+# ─────────────────────────────────────────────────────────────────────────────
+# 如何新增一個會被抓取的品項：
+#   1. 在下方 catalog 對應分類加一筆 crop 項目（或為已存在的品項加上 tracked）
+#   2. 加上 `tracked: true` 與 `db_pattern: "<DB 裡比對的字串>"`
+#   3. 補齊至少一個 codes 項目（code + name）
+#   4. 執行 `python -m etl.backfill --start <起始日>` 回填歷史
+#   5. 隔日自動排程會自動把此品項納入
+# ─────────────────────────────────────────────────────────────────────────────
 
-version: "1.0"
+version: "1.1"
 source: "https://amis.afa.gov.tw/main/ProductChanged.aspx"
-last_updated: "2026-04-14"
+last_updated: "2026-04-18"
 
 catalog:
 
   蔬菜:
 
     花果菜類:   # code prefix: F（Fruit / Flower vegetables）
+
+      - crop: 青花菜
+        aliases: [花椰菜, 綠花椰, 西蘭花, 青花椰菜]
+        tracked: true
+        db_pattern: "花椰菜"
+        codes:
+          - { code: FB1, name: "花椰菜 青梗", imported: false }
+
+      - crop: 牛番茄
+        aliases: [大番茄, 沙拉番茄, 牛蕃茄]
+        tracked: true
+        db_pattern: "牛番茄"
+        codes:
+          - { code: FJ3, name: "番茄 牛番茄", imported: false }
 
       - crop: 甜椒
         aliases: [青椒, 彩椒, 燈籠椒, 柿子椒]
@@ -175,6 +203,14 @@ catalog:
           - { code: MK2, name: "鴻喜菇 盒裝",  imported: false }
 
     根莖類:   # code prefix: S（Root / Stem vegetables）
+
+      - crop: 洋蔥
+        aliases: [紅蔥, 蔥頭, 球蔥, 玉蔥]
+        tracked: true
+        db_pattern: "洋蔥"
+        codes:
+          - { code: SD1, name: "洋蔥 本產",  imported: false }
+          - { code: SD9, name: "洋蔥 進口",  imported: true  }
 
       - crop: 蘿蔔
         aliases: [白蘿蔔, 菜頭, 甜菜根]

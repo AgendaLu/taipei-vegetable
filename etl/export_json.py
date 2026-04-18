@@ -6,11 +6,14 @@ etl/export_json.py
     data/latest.json        最新交易日行情（含與前日漲跌比較）
     data/history.json       近 90 天每日中價
     data/weekly_digest.json 上週 vs 前週漲跌幅排行
+    data/yoy.json           各品項月均（供 YoY 比較）
+    data/crops_index.json   搜尋字典（展平自 etl/crops.yaml，含 tracked 標記）
 """
 import json
 from datetime import date, timedelta
 from pathlib import Path
 
+from etl.catalog import flatten_for_frontend, tracked_crop_map
 from etl.db import DB_PATH, get_db
 
 DATA_DIR     = Path(__file__).parent.parent / "data"
@@ -18,15 +21,11 @@ HISTORY_DAYS = 90
 
 # ── 名稱對照：API 原始名稱 → 消費者用語 ───────────────────────────────────────
 #
+# 來源：etl/crops.yaml 中 tracked: true 的品項（單一事實來源）
+# 格式：{ 顯示名稱: DB LIKE 比對字串 }
 # API 回傳的作物名稱格式為「種類-品種」，以 LIKE 子字串比對找到對應資料，
 # 再統一對外顯示為消費者熟悉的名稱。
-#
-# 格式：{ 顯示名稱: DB LIKE 比對字串 }
-CROP_MAP = {
-    "青花菜": "花椰菜",   # DB: 花椰菜-青梗
-    "牛番茄": "牛番茄",   # DB: 番茄-牛番茄
-    "洋蔥":   "洋蔥",     # DB: 洋蔥-本產、洋蔥-進口
-}
+CROP_MAP = tracked_crop_map()
 
 # 格式：{ DB 市場名稱: 顯示名稱 }
 MARKET_MAP = {
@@ -323,6 +322,17 @@ def export_yoy(conn) -> dict:
 
 # ── 主程式 ────────────────────────────────────────────────────────────────────
 
+def export_crops_index() -> dict:
+    """搜尋字典：展平 crops.yaml，供前端 Fuse.js 模糊比對使用。"""
+    items = flatten_for_frontend()
+    return {
+        "generated_at": date.today().isoformat(),
+        "tracked_count": sum(1 for x in items if x["tracked"]),
+        "total_count":   len(items),
+        "items":         items,
+    }
+
+
 def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
     conn = get_db(DB_PATH)
@@ -332,6 +342,7 @@ def main():
         "history.json":       export_history(conn),
         "weekly_digest.json": export_weekly_digest(conn),
         "yoy.json":           export_yoy(conn),
+        "crops_index.json":   export_crops_index(),
     }
 
     for filename, data in tasks.items():
