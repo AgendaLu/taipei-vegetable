@@ -438,12 +438,12 @@ function interpolateSeries(rows, cutoff) {
   const end   = parse(sorted[sorted.length - 1].date);
   const allDates = d3.timeDays(start, d3.timeDay.offset(end, 1)).map(fmt);
 
-  // 線性插值
+  // 線性插值（補出來的點標記 interpolated: true，供前端虛線繪製）
   const result = [];
   for (let i = 0; i < allDates.length; i++) {
     const d = allDates[i];
     if (known.has(d)) {
-      result.push({ date: d, mid_price: known.get(d) });
+      result.push({ date: d, mid_price: known.get(d), interpolated: false });
     } else {
       let pi = i - 1; while (pi >= 0 && !known.has(allDates[pi])) pi--;
       let ni = i + 1; while (ni < allDates.length && !known.has(allDates[ni])) ni++;
@@ -456,7 +456,7 @@ function interpolateSeries(rows, cutoff) {
       } else if (ni < allDates.length) {
         price = known.get(allDates[ni]);
       }
-      if (price != null) result.push({ date: d, mid_price: price });
+      if (price != null) result.push({ date: d, mid_price: price, interpolated: true });
     }
   }
   return result;
@@ -579,6 +579,31 @@ function renderSparkline(crop, history) {
 
   svg.append('path').datum(data).attr('fill', `url(#${gradId})`).attr('d', area);
 
+  // 底層：虛線（含插值點），代表全期間連續走勢
+  const dashedLine = d3.line()
+    .x((_, i) => x(i))
+    .y(d => y(d.mid_price))
+    .curve(d3.curveMonotoneX);
+
+  svg.append('path')
+    .datum(data)
+    .attr('fill', 'none')
+    .attr('stroke', '#10b981')
+    .attr('stroke-width', 1.75)
+    .attr('stroke-linejoin', 'round')
+    .attr('stroke-linecap', 'round')
+    .attr('stroke-dasharray', '3 2')
+    .attr('opacity', 0)
+    .attr('d', dashedLine)
+    .transition().duration(600).attr('opacity', 0.6);
+
+  // 上層：實線（僅連接實際資料點，缺漏處自然斷開露出虛線）
+  const solidLine = d3.line()
+    .defined(d => !d.interpolated)
+    .x((_, i) => x(i))
+    .y(d => y(d.mid_price))
+    .curve(d3.curveMonotoneX);
+
   const path = svg.append('path')
     .datum(data)
     .attr('fill', 'none')
@@ -586,7 +611,7 @@ function renderSparkline(crop, history) {
     .attr('stroke-width', 1.75)
     .attr('stroke-linejoin', 'round')
     .attr('stroke-linecap', 'round')
-    .attr('d', line);
+    .attr('d', solidLine);
 
   // Draw-on animation
   const len = path.node().getTotalLength();
@@ -699,8 +724,16 @@ function renderTrendChart() {
     .attr('font-size', '10px')
     .text('元 / 公斤');
 
-  // Line + Area generators（插值後不需要 defined 過濾）
-  const line = d3.line()
+  // Line + Area generators
+  // - dashedLine：含全部插值點，畫底層虛線（缺漏日期的視覺提示）
+  // - solidLine：以 defined 過濾插值點，只在實際資料點之間畫實線
+  const dashedLine = d3.line()
+    .x(d => x(parseDate(d.date)))
+    .y(d => y(d.mid_price))
+    .curve(d3.curveMonotoneX);
+
+  const solidLine = d3.line()
+    .defined(d => !d.interpolated)
     .x(d => x(parseDate(d.date)))
     .y(d => y(d.mid_price))
     .curve(d3.curveMonotoneX);
@@ -732,6 +765,20 @@ function renderTrendChart() {
       .attr('fill', `url(#${gradId})`)
       .attr('d', area);
 
+    // 底層虛線（含插值點）
+    chartG.append('path')
+      .datum(sorted)
+      .attr('fill', 'none')
+      .attr('stroke', color)
+      .attr('stroke-width', 2)
+      .attr('stroke-linejoin', 'round')
+      .attr('stroke-linecap', 'round')
+      .attr('stroke-dasharray', '4 3')
+      .attr('opacity', 0)
+      .attr('d', dashedLine)
+      .transition().duration(900).attr('opacity', 0.55);
+
+    // 上層實線（缺漏處斷開）
     const path = chartG.append('path')
       .datum(sorted)
       .attr('fill', 'none')
@@ -739,7 +786,7 @@ function renderTrendChart() {
       .attr('stroke-width', 2)
       .attr('stroke-linejoin', 'round')
       .attr('stroke-linecap', 'round')
-      .attr('d', line);
+      .attr('d', solidLine);
 
     // Draw-on animation
     const len = path.node().getTotalLength();
@@ -1185,17 +1232,32 @@ function renderHmDaily(crop, container) {
     .append('rect').attr('width', w).attr('height', h + 4);
   const chartG = g.append('g').attr('clip-path', `url(#${clipId})`);
 
-  const line = d3.line()
+  const dashedLine = d3.line()
+    .x(r => x(parseDate(r.date))).y(r => y(r.mid_price))
+    .curve(d3.curveMonotoneX);
+
+  const solidLine = d3.line()
+    .defined(r => !r.interpolated)
     .x(r => x(parseDate(r.date))).y(r => y(r.mid_price))
     .curve(d3.curveMonotoneX);
 
   interpByMarket.forEach((data, market) => {
     const sorted = [...data].sort((a, b) => a.date.localeCompare(b.date));
     const color  = MARKET_COLORS[market] || '#64748b';
-    const path   = chartG.append('path').datum(sorted)
+
+    // 底層虛線（含插值點）
+    chartG.append('path').datum(sorted)
       .attr('fill', 'none').attr('stroke', color)
       .attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
-      .attr('d', line);
+      .attr('stroke-dasharray', '4 3').attr('opacity', 0)
+      .attr('d', dashedLine)
+      .transition().duration(900).attr('opacity', 0.55);
+
+    // 上層實線（缺漏處斷開）
+    const path = chartG.append('path').datum(sorted)
+      .attr('fill', 'none').attr('stroke', color)
+      .attr('stroke-width', 2).attr('stroke-linejoin', 'round').attr('stroke-linecap', 'round')
+      .attr('d', solidLine);
     const len = path.node().getTotalLength();
     path.attr('stroke-dasharray', `${len} ${len}`).attr('stroke-dashoffset', len)
       .transition().duration(900).ease(d3.easeLinear).attr('stroke-dashoffset', 0);
