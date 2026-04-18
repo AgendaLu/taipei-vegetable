@@ -36,7 +36,7 @@ MARKET_MAP = {
 }
 
 CROPS   = list(CROP_MAP.keys())    # ["青花菜", "牛番茄", "洋蔥"]
-MARKETS = list(MARKET_MAP.values()) # ["台北一", "台北二", "三重", "桃農"]
+MARKETS = list(MARKET_MAP.values()) # ["台北一", "台北二", "三重", "板橋"]
 
 
 # ── 最新行情 ──────────────────────────────────────────────────────────────────
