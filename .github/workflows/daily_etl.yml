@@ -15,7 +15,8 @@ jobs:
   etl:
     runs-on: ubuntu-latest
     env:
-      MOA_API_KEY: ${{ secrets.MOA_API_KEY }}
+      MOA_API_KEY:  ${{ secrets.MOA_API_KEY }}
+      DATABASE_URL: ${{ secrets.DATABASE_URL }}
     outputs:
       latest_trade_date: ${{ steps.summary.outputs.latest_trade_date }}
 
@@ -27,16 +28,6 @@ jobs:
         uses: actions/setup-python@v5
         with:
           python-version: '3.11'
-
-      - name: Restore database cache
-        uses: actions/cache@v4
-        with:
-          path: agri_prices.db
-          # run_id 保證每次都寫入新 cache，restore-keys 確保讀取最近一筆
-          # 避免 hashFiles('db.py') 導致 schema 異動時資料庫從零重建
-          key: agri-db-${{ runner.os }}-${{ github.run_id }}
-          restore-keys: |
-            agri-db-${{ runner.os }}-
 
       - name: Install dependencies
         run: pip install -r requirements.txt

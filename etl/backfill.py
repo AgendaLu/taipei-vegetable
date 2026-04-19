@@ -19,7 +19,7 @@ from datetime import date, datetime, timedelta
 import requests
 
 from etl.catalog import tracked_crop_codes
-from etl.db import DB_PATH, get_db, log_run, write_records
+from etl.db import get_db, log_run, write_records
 
 API_BASE = "https://data.moa.gov.tw/api/v1/AgriProductsTransType/"
 API_KEY  = os.environ.get("MOA_API_KEY", "")
@@ -131,7 +131,7 @@ def run_backfill(start: date, end: date, dry_run: bool = False):
             print(f"  [{i:3d}/{total}] {iso(ms)}～{iso(me)}  {display} ({code})")
         return 0
 
-    conn          = get_db(DB_PATH)
+    conn          = get_db()
     total_fetched = 0
     total_written = 0
     errors: list[str] = []
@@ -177,7 +177,9 @@ def run_backfill(start: date, end: date, dry_run: bool = False):
         print(f"\n  ⚠ 錯誤清單（{len(errors)} 筆）：")
         for e in errors:
             print(f"    - {e}")
-    print(f"  資料庫：{DB_PATH}")
+    db_hint = os.environ.get("DATABASE_URL", "")
+    db_hint = db_hint[:db_hint.find("@") + 1] + "..." if "@" in db_hint else "(DATABASE_URL 未設定)"
+    print(f"  資料庫：{db_hint}")
     print(f"{'═'*60}\n")
     return len(errors)
 

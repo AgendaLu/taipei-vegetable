@@ -636,9 +636,10 @@ function renderTrendChart() {
 
   if (width <= 0 || height <= 0) return;
 
-  // Filter data
+  // Filter data — normalize to midnight so boundary date is included
   const cutoff = new Date();
   cutoff.setDate(cutoff.getDate() - state.days);
+  cutoff.setHours(0, 0, 0, 0);
 
   const parseDate = d3.timeParse('%Y-%m-%d');
 
