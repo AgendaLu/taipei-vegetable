@@ -1,28 +1,5 @@
 {
   "generated_at": "2026-04-19",
-  "crops": [
-    "青花菜",
-    "牛番茄",
-    "洋蔥"
-  ],
-  "rows": [
-    {
-      "year_month": "2026-04",
-      "crop": "洋蔥",
-      "avg_mid": 17.1,
-      "volume_kg": 178420
-    },
-    {
-      "year_month": "2026-04",
-      "crop": "牛番茄",
-      "avg_mid": 32.0,
-      "volume_kg": 188370
-    },
-    {
-      "year_month": "2026-04",
-      "crop": "青花菜",
-      "avg_mid": 23.2,
-      "volume_kg": 160794
-    }
-  ]
+  "crops": [],
+  "rows": []
 }
