@@ -17,7 +17,7 @@ from datetime import date, datetime
 import requests
 
 from etl.catalog import tracked_crop_codes
-from etl.db import DB_PATH, get_db, log_run, write_records
+from etl.db import get_db, log_run, write_records
 
 API_BASE = "https://data.moa.gov.tw/api/v1/AgriProductsTransType/"
 API_KEY  = os.environ.get("MOA_API_KEY", "")
@@ -88,7 +88,7 @@ def run_daily(target: date) -> int:
     print(f"\n▶ 抓取 {iso} 資料")
     print(f"  品項：{', '.join(CROP_CODES.keys())}\n")
 
-    conn = get_db(DB_PATH)
+    conn = get_db()
     total_written = 0
     errors: list[str] = []
 

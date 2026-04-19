@@ -14,7 +14,7 @@ from datetime import date, timedelta
 from pathlib import Path
 
 from etl.catalog import flatten_for_frontend, tracked_crop_map
-from etl.db import DB_PATH, get_db
+from etl.db import get_db
 
 DATA_DIR     = Path(__file__).parent.parent / "data"
 HISTORY_DAYS = 90
@@ -62,8 +62,8 @@ def _crop_where_clause() -> str:
 
 def export_latest(conn) -> dict:
     row = conn.execute(
-        "SELECT MAX(trade_date) FROM produce_daily_prices"
-    ).fetchone()[0]
+        "SELECT MAX(trade_date) AS latest_date FROM produce_daily_prices"
+    ).fetchone()["latest_date"]
 
     if not row:
         return {
@@ -218,7 +218,7 @@ def export_weekly_digest(conn) -> dict:
             WHERE p.trade_date BETWEEN ? AND ?
               AND {_crop_where_clause()}
             GROUP BY c.id
-            HAVING total_volume >= 100
+            HAVING SUM(p.volume_kg) >= 100
             """,
             (start.isoformat(), end.isoformat()),
         ).fetchall()
@@ -276,7 +276,7 @@ def export_yoy(conn) -> dict:
     """
     rows = conn.execute(
         f"""
-        SELECT substr(p.trade_date, 1, 7) AS year_month,
+        SELECT LEFT(p.trade_date, 7) AS year_month,
                c.name                     AS crop,
                p.mid_price,
                p.volume_kg
@@ -335,7 +335,7 @@ def export_crops_index() -> dict:
 
 def main():
     DATA_DIR.mkdir(parents=True, exist_ok=True)
-    conn = get_db(DB_PATH)
+    conn = get_db()
 
     tasks = {
         "latest.json":        export_latest(conn),
