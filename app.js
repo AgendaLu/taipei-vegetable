@@ -65,13 +65,28 @@ function clearAllReports() {
 async function loadData() {
   const v = Date.now();
   const get = url => fetch(`${url}?v=${v}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
-  const [history, digest, latest, yoy, cropsIndex] = await Promise.all([
+
+  const [history, digest, latest, yoyCurrent, yoyHistorical, cropsIndex] = await Promise.all([
     get('data/history.json'),
     get('data/weekly_digest.json'),
     get('data/latest.json'),
     get('data/yoy.json'),
+    // 從本地加載靜態歷史數據（2024-2025）
+    get('data/yoy_historical_2024_2025.json')
+      .catch(() => ({ crops: [], rows: [] })), // 若加載失敗，回傳空數據
     get('data/crops_index.json'),
   ]);
+
+  // 合併當年資料 + 歷史資料（歷史 + 當年）
+  const yoy = {
+    generated_at: yoyCurrent.generated_at || new Date().toISOString().split('T')[0],
+    crops: yoyCurrent.crops || [],
+    rows: [
+      ...(yoyHistorical.rows || []),  // 歷史 2024-2025
+      ...(yoyCurrent.rows || [])      // 當年 2026
+    ]
+  };
+
   return { history, digest, latest, yoy, cropsIndex };
 }
 
