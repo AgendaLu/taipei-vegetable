@@ -1,0 +1,207 @@
+{
+  "info": {
+    "name": "農業部菜價 API 測試",
+    "description": "農業部蔬菜交易行情 API 測試集合（含當日/回溯邏輯驗證）",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "auth": {
+    "type": "apikey",
+    "apikey": [
+      {
+        "key": "value",
+        "value": "{{MOA_API_KEY}}",
+        "type": "string"
+      },
+      {
+        "key": "key",
+        "value": "apikey",
+        "type": "string"
+      }
+    ]
+  },
+  "item": [
+    {
+      "name": "查詢今日數據 - 白菜",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://data.moa.gov.tw/api/v1/AgriProductsTransType/?apikey={{MOA_API_KEY}}&format=json&CropCode=N00100&Start_time={{today_minguo}}&End_time={{today_minguo}}&Page=1",
+          "protocol": "https",
+          "host": [
+            "data.moa.gov.tw"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "AgriProductsTransType",
+            ""
+          ],
+          "query": [
+            {
+              "key": "apikey",
+              "value": "{{MOA_API_KEY}}"
+            },
+            {
+              "key": "format",
+              "value": "json"
+            },
+            {
+              "key": "CropCode",
+              "value": "N00100",
+              "description": "白菜"
+            },
+            {
+              "key": "Start_time",
+              "value": "{{today_minguo}}",
+              "description": "民國年格式，e.g., 115.04.20"
+            },
+            {
+              "key": "End_time",
+              "value": "{{today_minguo}}"
+            },
+            {
+              "key": "Page",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "查詢今日白菜數據"
+      },
+      "response": []
+    },
+    {
+      "name": "查詢前一日數據 - 白菜（回溯用）",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://data.moa.gov.tw/api/v1/AgriProductsTransType/?apikey={{MOA_API_KEY}}&format=json&CropCode=N00100&Start_time={{yesterday_minguo}}&End_time={{yesterday_minguo}}&Page=1",
+          "protocol": "https",
+          "host": [
+            "data.moa.gov.tw"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "AgriProductsTransType",
+            ""
+          ],
+          "query": [
+            {
+              "key": "apikey",
+              "value": "{{MOA_API_KEY}}"
+            },
+            {
+              "key": "format",
+              "value": "json"
+            },
+            {
+              "key": "CropCode",
+              "value": "N00100",
+              "description": "白菜"
+            },
+            {
+              "key": "Start_time",
+              "value": "{{yesterday_minguo}}",
+              "description": "民國年格式，前一日"
+            },
+            {
+              "key": "End_time",
+              "value": "{{yesterday_minguo}}"
+            },
+            {
+              "key": "Page",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "當今日無數據時，查詢前一日白菜數據"
+      },
+      "response": []
+    },
+    {
+      "name": "查詢日期區間 - 蕃茄（歷史補抓）",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "https://data.moa.gov.tw/api/v1/AgriProductsTransType/?apikey={{MOA_API_KEY}}&format=json&CropCode=N01600&Start_time={{start_date_minguo}}&End_time={{end_date_minguo}}&Page=1",
+          "protocol": "https",
+          "host": [
+            "data.moa.gov.tw"
+          ],
+          "path": [
+            "api",
+            "v1",
+            "AgriProductsTransType",
+            ""
+          ],
+          "query": [
+            {
+              "key": "apikey",
+              "value": "{{MOA_API_KEY}}"
+            },
+            {
+              "key": "format",
+              "value": "json"
+            },
+            {
+              "key": "CropCode",
+              "value": "N01600",
+              "description": "蕃茄"
+            },
+            {
+              "key": "Start_time",
+              "value": "{{start_date_minguo}}",
+              "description": "民國年格式，e.g., 115.04.01"
+            },
+            {
+              "key": "End_time",
+              "value": "{{end_date_minguo}}",
+              "description": "民國年格式，e.g., 115.04.15"
+            },
+            {
+              "key": "Page",
+              "value": "1"
+            }
+          ]
+        },
+        "description": "查詢指定日期區間的蕃茄數據"
+      },
+      "response": []
+    }
+  ],
+  "variable": [
+    {
+      "key": "MOA_API_KEY",
+      "value": "",
+      "type": "string",
+      "description": "從環境變數取得，或在此設定你的 API Key"
+    },
+    {
+      "key": "today_minguo",
+      "value": "115.04.20",
+      "type": "string",
+      "description": "今日（民國年格式）計算方式：年份 = 西元年 - 1911"
+    },
+    {
+      "key": "yesterday_minguo",
+      "value": "115.04.19",
+      "type": "string",
+      "description": "前一日（民國年格式）"
+    },
+    {
+      "key": "start_date_minguo",
+      "value": "115.04.01",
+      "type": "string",
+      "description": "起始日期（民國年格式）"
+    },
+    {
+      "key": "end_date_minguo",
+      "value": "115.04.15",
+      "type": "string",
+      "description": "結束日期（民國年格式）"
+    }
+  ]
+}
