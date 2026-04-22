@@ -3,7 +3,11 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta http-equiv="Cache-Control" content="no-cache, no-store, must-revalidate" />
+  <meta http-equiv="Pragma" content="no-cache" />
+  <meta http-equiv="Expires" content="0" />
   <title>台北菜價追蹤</title>
+  <!-- cache-buster: initial -->
 
   <!-- Tailwind CSS v4 Play CDN -->
   <script src="https://cdn.tailwindcss.com"></script>
@@ -447,6 +451,12 @@
     ・每日 10:00 自動更新
   </footer>
 
-  <script src="app.js?v=8"></script>
+  <script src="app.js"></script>
+  <script>
+    // Fallback: 若 app.js 尚未定義 init，則強制重新載入（快取相關）
+    if (typeof init !== 'function') {
+      window.location.reload();
+    }
+  </script>
 </body>
 </html>

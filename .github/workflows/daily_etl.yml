@@ -61,10 +61,20 @@ jobs:
           } >> "$GITHUB_STEP_SUMMARY"
           echo "✓ 最新交易日：$LATEST"
 
+      - name: Update cache-busting timestamp in index.html
+        run: |
+          # 更新 index.html 中的快取破壞註解，強制瀏覽器重新加載
+          TIMESTAMP=$(date +%s%3N)  # 毫秒級時間戳
+          sed -i "s|<!-- cache-buster: .* -->|<!-- cache-buster: ${TIMESTAMP} -->|g" index.html
+          if ! grep -q "cache-buster:" index.html; then
+            # 若不存在，在 closing head 前添加
+            sed -i "/<\/head>/i\  <!-- cache-buster: ${TIMESTAMP} -->" index.html
+          fi
+
       - name: Commit updated data
         run: |
           git config user.name  "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add data/
+          git add data/ index.html
           git diff --cached --quiet && echo "No changes to commit" || \
             git commit -m "data: update ${{ steps.summary.outputs.latest_trade_date }}" && git push

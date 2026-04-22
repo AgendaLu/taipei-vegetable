@@ -63,8 +63,10 @@ function clearAllReports() {
 // ─── Data Loading ─────────────────────────────────────────────────────────────
 
 async function loadData() {
+  // 強制破壞瀏覽器快取：使用毫秒級時間戳記，確保每次都取最新資料
   const v = Date.now();
-  const get = url => fetch(`${url}?v=${v}`).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
+  // 添加 no-cache 標頭，確保服務器每次都驗證資料新鮮度
+  const get = url => fetch(`${url}?v=${v}`, { cache: 'no-store' }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); });
 
   const [history, digest, latest, yoyCurrent, yoyHistorical, cropsIndex] = await Promise.all([
     get('data/history.json'),
