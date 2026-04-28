@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-04-27",
+  "generated_at": "2026-04-28",
   "crops": [
     "青花菜",
     "牛番茄",
@@ -63,20 +63,20 @@
     {
       "year_month": "2026-04",
       "crop": "洋蔥",
-      "avg_mid": 15.2,
-      "volume_kg": 804323
+      "avg_mid": 15.3,
+      "volume_kg": 829078
     },
     {
       "year_month": "2026-04",
       "crop": "牛番茄",
-      "avg_mid": 28.0,
-      "volume_kg": 999645
+      "avg_mid": 29.2,
+      "volume_kg": 1041428
     },
     {
       "year_month": "2026-04",
       "crop": "青花菜",
-      "avg_mid": 20.8,
-      "volume_kg": 737101
+      "avg_mid": 21.2,
+      "volume_kg": 754151
     }
   ]
 }
