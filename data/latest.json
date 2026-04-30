@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-04-29",
-  "trade_date": "2026-04-29",
+  "updated_at": "2026-04-30",
+  "trade_date": "2026-04-30",
   "crops": [
     "青花菜",
     "牛番茄",
@@ -16,110 +16,110 @@
     {
       "crop": "洋蔥",
       "market": "三重",
-      "mid_price": 18.2,
-      "upper_price": 19.9,
-      "lower_price": 13.3,
-      "volume_kg": 3140.0,
-      "change_pct": 32.4
+      "mid_price": 16.9,
+      "upper_price": 20.0,
+      "lower_price": 10.6,
+      "volume_kg": 2690.0,
+      "change_pct": -7.4
     },
     {
       "crop": "洋蔥",
       "market": "台北一",
-      "mid_price": 18.4,
-      "upper_price": 24.9,
-      "lower_price": 11.1,
-      "volume_kg": 14049.0,
-      "change_pct": -8.9
+      "mid_price": 19.1,
+      "upper_price": 25.5,
+      "lower_price": 6.8,
+      "volume_kg": 11328.0,
+      "change_pct": 4.1
     },
     {
       "crop": "洋蔥",
       "market": "台北二",
-      "mid_price": 21.9,
-      "upper_price": 25.4,
-      "lower_price": 11.9,
-      "volume_kg": 10720.0,
-      "change_pct": 21.7
+      "mid_price": 17.2,
+      "upper_price": 27.8,
+      "lower_price": 5.5,
+      "volume_kg": 9134.0,
+      "change_pct": -21.6
     },
     {
       "crop": "洋蔥",
       "market": "板橋",
-      "mid_price": 20.1,
-      "upper_price": 25.1,
-      "lower_price": 13.8,
-      "volume_kg": 6816.0,
-      "change_pct": -12.2
+      "mid_price": 28.1,
+      "upper_price": 29.6,
+      "lower_price": 17.2,
+      "volume_kg": 11520.0,
+      "change_pct": 40.1
     },
     {
       "crop": "牛番茄",
       "market": "三重",
-      "mid_price": 42.3,
-      "upper_price": 88.5,
+      "mid_price": 38.4,
+      "upper_price": 75.0,
+      "lower_price": 18.1,
+      "volume_kg": 4615.0,
+      "change_pct": -9.2
+    },
+    {
+      "crop": "牛番茄",
+      "market": "台北一",
+      "mid_price": 48.8,
+      "upper_price": 77.0,
+      "lower_price": 18.7,
+      "volume_kg": 26601.0,
+      "change_pct": 1.9
+    },
+    {
+      "crop": "牛番茄",
+      "market": "台北二",
+      "mid_price": 51.0,
+      "upper_price": 85.8,
+      "lower_price": 25.0,
+      "volume_kg": 11295.0,
+      "change_pct": 3.9
+    },
+    {
+      "crop": "牛番茄",
+      "market": "板橋",
+      "mid_price": 50.3,
+      "upper_price": 81.2,
       "lower_price": 21.2,
-      "volume_kg": 4755.0,
-      "change_pct": 14.0
-    },
-    {
-      "crop": "牛番茄",
-      "market": "台北一",
-      "mid_price": 47.9,
-      "upper_price": 79.6,
-      "lower_price": 19.0,
-      "volume_kg": 29447.0,
-      "change_pct": -20.0
-    },
-    {
-      "crop": "牛番茄",
-      "market": "台北二",
-      "mid_price": 49.1,
-      "upper_price": 88.5,
-      "lower_price": 24.6,
-      "volume_kg": 11752.0,
-      "change_pct": -5.9
-    },
-    {
-      "crop": "牛番茄",
-      "market": "板橋",
-      "mid_price": 40.5,
-      "upper_price": 87.2,
-      "lower_price": 16.8,
-      "volume_kg": 5315.2,
-      "change_pct": -11.0
+      "volume_kg": 4584.0,
+      "change_pct": 24.2
     },
     {
       "crop": "青花菜",
       "market": "三重",
-      "mid_price": 29.6,
-      "upper_price": 35.9,
-      "lower_price": 22.0,
-      "volume_kg": 2155.0,
-      "change_pct": 13.4
+      "mid_price": 29.2,
+      "upper_price": 35.7,
+      "lower_price": 21.5,
+      "volume_kg": 1360.0,
+      "change_pct": -1.4
     },
     {
       "crop": "青花菜",
       "market": "台北一",
-      "mid_price": 39.8,
-      "upper_price": 65.4,
-      "lower_price": 17.3,
-      "volume_kg": 7143.0,
-      "change_pct": -5.5
+      "mid_price": 46.8,
+      "upper_price": 67.7,
+      "lower_price": 27.2,
+      "volume_kg": 4541.0,
+      "change_pct": 17.6
     },
     {
       "crop": "青花菜",
       "market": "台北二",
-      "mid_price": 34.8,
-      "upper_price": 53.7,
-      "lower_price": 20.6,
-      "volume_kg": 3766.0,
-      "change_pct": -0.6
+      "mid_price": 37.1,
+      "upper_price": 53.9,
+      "lower_price": 23.2,
+      "volume_kg": 3460.0,
+      "change_pct": 6.6
     },
     {
       "crop": "青花菜",
       "market": "板橋",
-      "mid_price": 29.9,
-      "upper_price": 35.0,
-      "lower_price": 22.8,
-      "volume_kg": 3382.0,
-      "change_pct": -6.3
+      "mid_price": 32.0,
+      "upper_price": 36.3,
+      "lower_price": 26.1,
+      "volume_kg": 2123.0,
+      "change_pct": 7.0
     }
   ]
 }
