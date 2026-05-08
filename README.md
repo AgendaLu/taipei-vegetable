@@ -19,7 +19,7 @@
 
 ### 🔄 自動化系統
 - **每日凌晨 8 點自動更新** - GitHub Actions 定時執行
-- **雙保險機制** - 先補抓前一日（確保有資料），再抓當日
+- **滾動 14 天視窗** - 每次跑都重抓過去 14 天 + 今天，自動修補因 workflow 失敗或 API 延遲產生的破洞（DB `INSERT OR IGNORE` 保護，不會重複）
 - **資料庫同步** - Supabase PostgreSQL 完整保存，JSON 即時發布
 - **Git 版本控制** - 每次更新自動提交，完整的資料變更歷史
 
@@ -32,36 +32,49 @@ taipei-vegetable/
 ├── README.md                           # 本檔案
 ├── requirements.txt                    # Python 依賴
 │
-├── app.js                              # 前端主應用（HTML5 + D3.js + Fuse.js）
-├── index.html                          # 主頁面
-├── style.css                           # 樣式表（Tailwind CSS）
+├── index.html                          # 前端主頁面（Tailwind CSS v4 CDN）
+├── app.js                              # 前端主邏輯（D3.js + Fuse.js）
 │
 ├── .github/
 │   └── workflows/
-│       └── daily_etl.yml               # 自動化抓取與發布工作流
+│       └── daily_etl.yml               # 每日 ETL：滾動 14 天視窗 + JSON 發布
 │
-├── etl/                                # 資料抓取與轉換
-│   ├── fetch_prices.py                 # 日常抓取農業部 API
-│   ├── fetch_with_fallback.py          # 智慧回溯（當日無資料查前一日）
-│   ├── backfill.py                     # 歷史資料補抓
-│   ├── export_json.py                  # 生成前端所需 JSON
-│   ├── catalog.py                      # 品項代號對照表
-│   ├── db.py                           # 資料庫連線管理
-│   └── crops.yaml                      # 追蹤品項設定（單一事實來源）
+├── etl/                                # 資料抓取與轉換（Python 模組）
+│   ├── fetch_prices.py                 # 單日抓取（含 fallback lookback）
+│   ├── fetch_with_fallback.py          # 智慧回溯（當日無資料時往前查）
+│   ├── backfill.py                     # 任意區間歷史補抓
+│   ├── export_json.py                  # 由 DB 產出前端 JSON
+│   ├── catalog.py                      # 讀取 crops.yaml 提供品項代號
+│   ├── db.py                           # PostgreSQL / SQLite 連線管理
+│   └── crops.yaml                      # 追蹤品項設定（SSOT）
 │
-├── data/                               # 數據檔案（自動生成，Git 追蹤）
-│   ├── latest.json                     # 最新交易行情（當日或前一日）
+├── data/                               # 前端資料（ETL 產出，Git 追蹤）
+│   ├── latest.json                     # 最新交易行情
 │   ├── history.json                    # 90 天歷史走勢
 │   ├── weekly_digest.json              # 週統計摘要
-│   ├── yoy.json                        # 年度對比數據
-│   ├── crops_index.json                # 品項索引與搜尋
-│   └── yoy_historical_2024_2025.json   # 歷史基準數據
+│   ├── yoy.json                        # 年度同期對比
+│   ├── crops_index.json                # 品項索引（搜尋用）
+│   └── yoy_historical_2024_2025.json   # 2024-2025 歷史基準
 │
-└── docs/                               # 相關文檔
-    ├── API_TESTING_README.md           # API 測試方案總覽
-    ├── QUICK_START.md                  # 快速開始指南
-    ├── API_TESTING_GUIDE.md            # 詳細測試文檔
-    └── API_TEST_SOLUTION.md            # API 設計說明
+├── docs/
+│   └── architecture-fly.md             # 架構演進筆記
+│
+├── sandbox/                            # 前端測試沙盒（mock 資料）
+│   ├── index.html
+│   ├── generate_mock.py
+│   └── data/
+│
+├── agri_prices.db                      # 本地 SQLite（無 DATABASE_URL 時使用）
+├── postman_collection.json             # Postman API 測試集合
+├── test_api.sh                         # Shell 快速測試腳本
+├── example_fallback.py                 # fallback 用法範例
+│
+├── API_TESTING_README.md               # API 測試方案總覽
+├── API_TESTING_GUIDE.md                # 詳細測試指南
+├── API_TEST_SOLUTION.md                # 測試方案設計
+├── QUICK_START.md                      # 30 秒快速上手
+├── ETL_ANALYSIS.md                     # ETL 邏輯分析
+└── YOY_STRATEGY.md                     # YoY 計算策略
 ```
 
 ---
@@ -166,11 +179,10 @@ python -m etl.export_json
 ## 🔧 技術棧
 
 ### 前端
-- **HTML5** - 結構
-- **Tailwind CSS** - 樣式設計
-- **D3.js** - 資料視覺化（折線圖、迷你圖）
-- **Fuse.js** - 模糊搜尋（支持中文別名）
-- **Chart.js / Sparkline** - 行情圖表
+- **HTML5 + Tailwind CSS v4 (Play CDN)** - 結構與樣式
+- **D3.js** - 資料視覺化（Trend Chart 折線圖、Sparkline 迷你圖）
+- **Fuse.js** - 模糊搜尋（支援中文別名）
+- 純靜態頁面，無打包工具，直接開 `index.html` 即可使用
 
 ### 後端
 - **Python 3.11+** - 核心語言
@@ -191,40 +203,44 @@ python -m etl.export_json
 ## 🔄 ETL 工作流程
 
 ```
-┌─ Daily ETL (每天 08:00)
+┌─ Daily ETL (每天 08:00 台灣時間)
 │
-├─ Fetch yesterday's prices
-│  ├─ API call: fetch_prices --date YESTERDAY
-│  └─ Insert to DB (with fallback: if empty, go back more days)
-│
-├─ Fetch today's prices  
-│  ├─ API call: fetch_prices (current date)
-│  └─ Insert to DB (with fallback)
+├─ Fetch last 14 days + today
+│  ├─ for D in (today-14 .. today-1): fetch_prices --date $D --no-fallback
+│  ├─ fetch_prices  (today, 含 fallback 處理 API 延遲)
+│  └─ DB INSERT OR IGNORE → 既有日期不重複，破洞自動補滿
 │
 ├─ Export JSON
-│  ├─ Generate latest.json (最新交易行情)
-│  ├─ Generate history.json (90天歷史走勢)
-│  ├─ Generate weekly_digest.json
-│  ├─ Generate yoy.json (年度對比)
-│  └─ Generate crops_index.json (搜尋索引)
+│  ├─ latest.json          # 最新交易行情
+│  ├─ history.json         # 90 天歷史走勢
+│  ├─ weekly_digest.json   # 週統計摘要
+│  ├─ yoy.json             # 年度對比
+│  └─ crops_index.json     # 搜尋索引
+│
+├─ Cache-bust index.html
+│  └─ 更新 <!-- cache-buster: TIMESTAMP --> 強制瀏覽器重抓
 │
 └─ Commit & Push
-   └─ Auto-commit to Git with timestamp
+   └─ commit message: "data: update <latest_trade_date>"
 ```
 
-### 智慧回溯邏輯
+### 兩層容錯設計
 
-當某個品項當日無資料時，自動往回查詢：
+**第一層：滾動 14 天視窗（workflow 層）**
+每次自動跑都重抓過去 14 天，所以即使 workflow 連續失敗幾天，下次成功時也會把破洞補回。這是主要的容錯機制。
+
+**第二層：智慧回溯（單日抓取層）**
+當「今天」呼叫 API 還沒上架時，`fetch_with_fallback` 會自動往前查：
 
 ```
 查詢 2026-04-20 → 無資料
   ↓
 查詢 2026-04-19 → 有資料 ✓
   ↓
-返回 2026-04-19 的資料（actual_date = 2026-04-19）
+返回 2026-04-19（actual_date = 2026-04-19，確保 latest.json 永遠有值）
 ```
 
-可設定 `LOOKBACK_DAYS` 環境變數控制往回天數（預設 3 天）。
+可由 `LOOKBACK_DAYS` 環境變數控制（預設 3 天）。歷史 14 天迴圈用 `--no-fallback`，避免重複往回查。
 
 ---
 
@@ -428,5 +444,5 @@ MIT License - 見 [LICENSE](LICENSE) 檔案
 
 ---
 
-**最後更新：2026-04-20**  
+**最後更新：2026-05-08**  
 **部署狀態** - [![Daily ETL](https://github.com/YiChengLu/taipei-vegetable/actions/workflows/daily_etl.yml/badge.svg)](https://github.com/YiChengLu/taipei-vegetable/actions)
