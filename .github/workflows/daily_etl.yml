@@ -32,18 +32,17 @@ jobs:
       - name: Install dependencies
         run: pip install -r requirements.txt
 
-      # 抓取過去 14 天 + 今天，自動修補因 workflow 失敗 / API 延遲造成的破洞。
-      # DB 用 INSERT OR IGNORE 保護，重抓既有日期不會產生重複資料。
-      # MOA 當日行情在早上 8 點通常尚未全數上架，靠 fallback 機制延後填入。
-      - name: Fetch last 14 days + today
+      # 修補近期破洞：每個作物 1 次 API 呼叫涵蓋過去 14 天（以 range 查詢取代 14 次單日請求）
+      # DB 以 INSERT OR IGNORE 保護，重抓既有日期不會重複。
+      - name: Backfill last 14 days (range query)
         run: |
-          for i in $(seq 14 -1 1); do
-            D=$(python -c "from datetime import date,timedelta; print(date.today()-timedelta(days=$i))")
-            echo "── Fetching $D ──"
-            python -m etl.fetch_prices --date "$D" --no-fallback || echo "⚠ $D 失敗，繼續下一天"
-          done
-          echo "── Fetching today ──"
-          python -m etl.fetch_prices
+          START=$(python -c "from datetime import date,timedelta; print(date.today()-timedelta(days=14))")
+          END=$(python   -c "from datetime import date,timedelta; print(date.today()-timedelta(days=1))")
+          python -m etl.fetch_prices --start "$START" --end "$END"
+
+      # 今日資料：MOA 在早上 8 點通常尚未全數上架，啟用 fallback 機制延後填入。
+      - name: Fetch today's prices
+        run: python -m etl.fetch_prices
 
       - name: Export JSON for frontend
         run: python -m etl.export_json
