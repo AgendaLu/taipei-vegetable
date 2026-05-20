@@ -1,6 +1,6 @@
 {
-  "updated_at": "2026-05-19",
-  "trade_date": "2026-05-19",
+  "updated_at": "2026-05-20",
+  "trade_date": "2026-05-20",
   "crops": [
     "青花菜",
     "牛番茄",
@@ -16,110 +16,110 @@
     {
       "crop": "洋蔥",
       "market": "三重",
-      "mid_price": 14.5,
-      "upper_price": 15.8,
-      "lower_price": 12.6,
-      "volume_kg": 2793.0,
-      "change_pct": null
+      "mid_price": 16.1,
+      "upper_price": 18.5,
+      "lower_price": 12.9,
+      "volume_kg": 2196.0,
+      "change_pct": 11.0
     },
     {
       "crop": "洋蔥",
       "market": "台北一",
-      "mid_price": 18.6,
-      "upper_price": 25.3,
+      "mid_price": 21.7,
+      "upper_price": 25.8,
+      "lower_price": 13.9,
+      "volume_kg": 9014.0,
+      "change_pct": 17.0
+    },
+    {
+      "crop": "洋蔥",
+      "market": "台北二",
+      "mid_price": 22.9,
+      "upper_price": 27.5,
+      "lower_price": 18.5,
+      "volume_kg": 12900.0,
+      "change_pct": 7.0
+    },
+    {
+      "crop": "洋蔥",
+      "market": "板橋",
+      "mid_price": 24.8,
+      "upper_price": 29.6,
       "lower_price": 11.6,
-      "volume_kg": 8098.0,
-      "change_pct": null
-    },
-    {
-      "crop": "洋蔥",
-      "market": "台北二",
-      "mid_price": 21.4,
-      "upper_price": 28.3,
-      "lower_price": 16.1,
-      "volume_kg": 8844.0,
-      "change_pct": null
-    },
-    {
-      "crop": "洋蔥",
-      "market": "板橋",
-      "mid_price": 14.4,
-      "upper_price": 24.8,
-      "lower_price": 12.1,
-      "volume_kg": 14000.0,
-      "change_pct": null
+      "volume_kg": 9868.0,
+      "change_pct": 71.6
     },
     {
       "crop": "牛番茄",
       "market": "三重",
-      "mid_price": 66.4,
-      "upper_price": 71.4,
-      "lower_price": 44.5,
-      "volume_kg": 3950.0,
-      "change_pct": null
+      "mid_price": 68.4,
+      "upper_price": 74.4,
+      "lower_price": 46.9,
+      "volume_kg": 5150.0,
+      "change_pct": 3.0
     },
     {
       "crop": "牛番茄",
       "market": "台北一",
-      "mid_price": 63.8,
-      "upper_price": 73.6,
-      "lower_price": 46.8,
-      "volume_kg": 30964.0,
-      "change_pct": null
+      "mid_price": 59.9,
+      "upper_price": 68.2,
+      "lower_price": 43.1,
+      "volume_kg": 30684.0,
+      "change_pct": -6.1
     },
     {
       "crop": "牛番茄",
       "market": "台北二",
-      "mid_price": 62.1,
-      "upper_price": 74.1,
-      "lower_price": 46.8,
-      "volume_kg": 13064.0,
-      "change_pct": null
+      "mid_price": 60.0,
+      "upper_price": 72.2,
+      "lower_price": 42.4,
+      "volume_kg": 14738.0,
+      "change_pct": -3.4
     },
     {
       "crop": "牛番茄",
       "market": "板橋",
-      "mid_price": 66.6,
-      "upper_price": 75.1,
-      "lower_price": 42.0,
-      "volume_kg": 4971.0,
-      "change_pct": null
+      "mid_price": 67.8,
+      "upper_price": 76.4,
+      "lower_price": 43.8,
+      "volume_kg": 3813.0,
+      "change_pct": 1.8
     },
     {
       "crop": "青花菜",
       "market": "三重",
-      "mid_price": 25.1,
-      "upper_price": 32.3,
-      "lower_price": 18.2,
-      "volume_kg": 5329.0,
-      "change_pct": null
-    },
-    {
-      "crop": "青花菜",
-      "market": "台北一",
-      "mid_price": 42.2,
-      "upper_price": 61.6,
-      "lower_price": 28.1,
-      "volume_kg": 9426.0,
-      "change_pct": null
-    },
-    {
-      "crop": "青花菜",
-      "market": "台北二",
-      "mid_price": 40.4,
-      "upper_price": 50.5,
-      "lower_price": 23.6,
-      "volume_kg": 5363.0,
-      "change_pct": null
-    },
-    {
-      "crop": "青花菜",
-      "market": "板橋",
-      "mid_price": 27.1,
-      "upper_price": 33.0,
+      "mid_price": 26.8,
+      "upper_price": 34.8,
       "lower_price": 20.0,
-      "volume_kg": 4705.0,
-      "change_pct": null
+      "volume_kg": 2574.0,
+      "change_pct": 6.8
+    },
+    {
+      "crop": "青花菜",
+      "market": "台北一",
+      "mid_price": 46.3,
+      "upper_price": 66.0,
+      "lower_price": 26.5,
+      "volume_kg": 6830.0,
+      "change_pct": 9.7
+    },
+    {
+      "crop": "青花菜",
+      "market": "台北二",
+      "mid_price": 35.2,
+      "upper_price": 54.3,
+      "lower_price": 22.8,
+      "volume_kg": 4093.0,
+      "change_pct": -12.9
+    },
+    {
+      "crop": "青花菜",
+      "market": "板橋",
+      "mid_price": 30.1,
+      "upper_price": 33.8,
+      "lower_price": 24.1,
+      "volume_kg": 3132.0,
+      "change_pct": 11.1
     }
   ]
 }
