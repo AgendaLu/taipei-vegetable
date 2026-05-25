@@ -1,32 +1,32 @@
 {
-  "generated_at": "2026-05-24",
+  "generated_at": "2026-05-25",
   "this_week": {
-    "start": "2026-05-11",
-    "end": "2026-05-17",
-    "label": "5/11－5/17"
+    "start": "2026-05-18",
+    "end": "2026-05-24",
+    "label": "5/18－5/24"
   },
   "prev_week": {
-    "start": "2026-05-04",
-    "end": "2026-05-10"
+    "start": "2026-05-11",
+    "end": "2026-05-17"
   },
   "items": [
     {
-      "crop": "牛番茄",
-      "this_avg": 60.9,
-      "prev_avg": 57.0,
-      "change_pct": 6.8
+      "crop": "洋蔥",
+      "this_avg": 20.0,
+      "prev_avg": 19.8,
+      "change_pct": 1.0
     },
     {
-      "crop": "洋蔥",
-      "this_avg": 19.8,
-      "prev_avg": 20.5,
-      "change_pct": -3.4
+      "crop": "牛番茄",
+      "this_avg": 57.9,
+      "prev_avg": 60.9,
+      "change_pct": -4.9
     },
     {
       "crop": "青花菜",
-      "this_avg": 34.6,
-      "prev_avg": 41.3,
-      "change_pct": -16.2
+      "this_avg": 30.9,
+      "prev_avg": 34.6,
+      "change_pct": -10.7
     }
   ]
 }
