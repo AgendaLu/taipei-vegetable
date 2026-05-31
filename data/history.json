@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-05-30",
+  "generated_at": "2026-05-31",
   "days": 90,
   "crops": [
     "青花菜",
@@ -13,90 +13,6 @@
     "板橋"
   ],
   "rows": [
-    {
-      "date": "2026-03-01",
-      "crop": "洋蔥",
-      "market": "三重",
-      "mid_price": 10.1,
-      "volume_kg": 5163.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "洋蔥",
-      "market": "台北一",
-      "mid_price": 16.1,
-      "volume_kg": 13639.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "洋蔥",
-      "market": "台北二",
-      "mid_price": 20.0,
-      "volume_kg": 13436.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "洋蔥",
-      "market": "板橋",
-      "mid_price": 16.7,
-      "volume_kg": 15142.5
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "牛番茄",
-      "market": "三重",
-      "mid_price": 14.4,
-      "volume_kg": 5009.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "牛番茄",
-      "market": "台北一",
-      "mid_price": 15.4,
-      "volume_kg": 28303.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "牛番茄",
-      "market": "台北二",
-      "mid_price": 23.7,
-      "volume_kg": 15186.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "牛番茄",
-      "market": "板橋",
-      "mid_price": 14.4,
-      "volume_kg": 6308.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "青花菜",
-      "market": "三重",
-      "mid_price": 17.9,
-      "volume_kg": 6385.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "青花菜",
-      "market": "台北一",
-      "mid_price": 23.9,
-      "volume_kg": 17714.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "青花菜",
-      "market": "台北二",
-      "mid_price": 31.8,
-      "volume_kg": 6484.0
-    },
-    {
-      "date": "2026-03-01",
-      "crop": "青花菜",
-      "market": "板橋",
-      "mid_price": 17.5,
-      "volume_kg": 8876.0
-    },
     {
       "date": "2026-03-02",
       "crop": "洋蔥",
